@@ -34,3 +34,38 @@ export async function mockDispatchValidationFailure(page: Page): Promise<void> {
     });
   });
 }
+
+type DispatchPayload = Record<string, unknown>;
+
+type MockDispatchAcceptedOptions = {
+  commandId?: string;
+  onDispatch?: (payload: DispatchPayload) => void;
+};
+
+export async function mockDispatchAccepted(
+  page: Page,
+  options: MockDispatchAcceptedOptions = {},
+): Promise<void> {
+  await page.route('**/api/v1/commands/dispatch', async (route) => {
+    let payload: DispatchPayload = {};
+
+    try {
+      payload = (route.request().postDataJSON() as DispatchPayload | null) ?? {};
+    } catch {
+      payload = {};
+    }
+
+    options.onDispatch?.(payload);
+
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        accepted: true,
+        command_id: options.commandId ?? 'automation-command-id',
+        mutation_applied: true,
+        event_appended: true,
+      }),
+    });
+  });
+}
