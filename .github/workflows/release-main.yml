@@ -1,0 +1,30 @@
+name: Main Release
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  nfr-evidence-pipeline:
+    name: NFR Evidence Pipeline
+    uses: ./.github/workflows/ci-nfr-evidence-pipeline.yml
+    with:
+      raw_artifact_dir: _bmad-output/test-artifacts/raw
+      normalized_artifact_dir: _bmad-output/test-artifacts
+
+  release-readiness:
+    name: Release Readiness
+    runs-on: ubuntu-latest
+    needs: nfr-evidence-pipeline
+    steps:
+      - name: Release gate passed
+        run: |
+          echo "Main release checks passed."
+          echo "NFR evidence pipeline is enforced in this workflow."

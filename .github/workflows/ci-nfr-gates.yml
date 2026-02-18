@@ -1,4 +1,4 @@
-name: NFR Evidence Gates (Draft)
+name: NFR Evidence Gates
 
 on:
   workflow_dispatch:

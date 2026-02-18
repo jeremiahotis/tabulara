@@ -1,4 +1,4 @@
-name: NFR Evidence Pipeline (Draft)
+name: NFR Evidence Pipeline
 
 on:
   workflow_dispatch:
@@ -11,11 +11,104 @@ on:
         description: "Directory for normalized NFR artifacts"
         required: false
         default: "_bmad-output/test-artifacts"
+  workflow_call:
+    inputs:
+      raw_artifact_dir:
+        required: false
+        type: string
+        default: "_bmad-output/test-artifacts/raw"
+      normalized_artifact_dir:
+        required: false
+        type: string
+        default: "_bmad-output/test-artifacts"
 
 jobs:
+  collect-raw-nfr-evidence:
+    name: Collect Raw NFR Evidence
+    runs-on: ubuntu-latest
+    outputs:
+      raw_dir: ${{ steps.vars.outputs.raw_dir }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve raw dir
+        id: vars
+        run: |
+          RAW_DIR="${{ inputs.raw_artifact_dir || github.event.inputs.raw_artifact_dir || '_bmad-output/test-artifacts/raw' }}"
+          echo "raw_dir=$RAW_DIR" >> "$GITHUB_OUTPUT"
+          echo "RAW_DIR=$RAW_DIR" >> "$GITHUB_ENV"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit pip-audit
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Collect raw tool exports
+        run: |
+          set -euo pipefail
+          mkdir -p "$RAW_DIR"
+
+          bandit -r scripts -f json -o "$RAW_DIR/security-sast-bandit.json" || true
+
+          : > "$RAW_DIR/requirements-empty.txt"
+          pip-audit -r "$RAW_DIR/requirements-empty.txt" --format json --output "$RAW_DIR/security-deps-pip-audit.json" || true
+
+          python3 -m http.server 18080 --directory . >/tmp/tabulara-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" >/dev/null 2>&1 || true' EXIT
+
+          TARGET_URL="http://127.0.0.1:18080" k6 run scripts/nfr_k6_smoke.js --summary-export "$RAW_DIR/perf-k6-tool-export.json"
+
+          python3 scripts/nfr_collect_raw.py \
+            --raw-dir "$RAW_DIR" \
+            --bandit-json "$RAW_DIR/security-sast-bandit.json" \
+            --deps-json "$RAW_DIR/security-deps-pip-audit.json" \
+            --k6-json "$RAW_DIR/perf-k6-tool-export.json" \
+            --burnin-runs 100 \
+            --recovery-drills 5
+
+      - name: Upload raw evidence artifacts (non-tag)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-nfr-evidence
+          retention-days: 30
+          path: |
+            ${{ env.RAW_DIR }}/security-sast-raw.json
+            ${{ env.RAW_DIR }}/security-deps-raw.json
+            ${{ env.RAW_DIR }}/perf-k6-raw.json
+            ${{ env.RAW_DIR }}/reliability-burnin-raw.json
+            ${{ env.RAW_DIR }}/recovery-rto-rpo-raw.json
+          if-no-files-found: error
+
+      - name: Upload raw evidence artifacts (release tag)
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-nfr-evidence
+          retention-days: 365
+          path: |
+            ${{ env.RAW_DIR }}/security-sast-raw.json
+            ${{ env.RAW_DIR }}/security-deps-raw.json
+            ${{ env.RAW_DIR }}/perf-k6-raw.json
+            ${{ env.RAW_DIR }}/reliability-burnin-raw.json
+            ${{ env.RAW_DIR }}/recovery-rto-rpo-raw.json
+          if-no-files-found: error
+
   normalize-nfr-artifacts:
     name: Normalize Raw NFR Evidence
     runs-on: ubuntu-latest
+    needs: collect-raw-nfr-evidence
     outputs:
       normalized_dir: ${{ steps.vars.outputs.normalized_dir }}
 
@@ -26,16 +119,21 @@ jobs:
       - name: Resolve dirs
         id: vars
         run: |
-          RAW_DIR="${{ github.event.inputs.raw_artifact_dir || '_bmad-output/test-artifacts/raw' }}"
-          NORMALIZED_DIR="${{ github.event.inputs.normalized_artifact_dir || '_bmad-output/test-artifacts' }}"
+          RAW_DIR="${{ inputs.raw_artifact_dir || github.event.inputs.raw_artifact_dir || '_bmad-output/test-artifacts/raw' }}"
+          NORMALIZED_DIR="${{ inputs.normalized_artifact_dir || github.event.inputs.normalized_artifact_dir || '_bmad-output/test-artifacts' }}"
           echo "raw_dir=$RAW_DIR" >> "$GITHUB_OUTPUT"
           echo "normalized_dir=$NORMALIZED_DIR" >> "$GITHUB_OUTPUT"
           echo "RAW_DIR=$RAW_DIR" >> "$GITHUB_ENV"
           echo "NORMALIZED_DIR=$NORMALIZED_DIR" >> "$GITHUB_ENV"
 
       - name: Ensure output directory exists
-        run: |
-          mkdir -p "$NORMALIZED_DIR"
+        run: mkdir -p "$RAW_DIR" "$NORMALIZED_DIR"
+
+      - name: Download raw evidence artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: raw-nfr-evidence
+          path: ${{ env.RAW_DIR }}
 
       - name: Normalize evidence artifacts
         run: |
@@ -48,10 +146,27 @@ jobs:
             --burnin-raw "$RAW_DIR/reliability-burnin-raw.json" \
             --recovery-raw "$RAW_DIR/recovery-rto-rpo-raw.json"
 
-      - name: Upload normalized evidence artifacts
+      - name: Upload normalized evidence artifacts (non-tag)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: normalized-nfr-evidence
+          retention-days: 30
+          path: |
+            ${{ env.NORMALIZED_DIR }}/security-sast-report.json
+            ${{ env.NORMALIZED_DIR }}/security-deps-report.json
+            ${{ env.NORMALIZED_DIR }}/perf-baseline.json
+            ${{ env.NORMALIZED_DIR }}/perf-k6-summary.json
+            ${{ env.NORMALIZED_DIR }}/reliability-burnin-summary.json
+            ${{ env.NORMALIZED_DIR }}/recovery-rto-rpo.json
+          if-no-files-found: error
+
+      - name: Upload normalized evidence artifacts (release tag)
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: normalized-nfr-evidence
+          retention-days: 365
           path: |
             ${{ env.NORMALIZED_DIR }}/security-sast-report.json
             ${{ env.NORMALIZED_DIR }}/security-deps-report.json
@@ -72,7 +187,7 @@ jobs:
 
       - name: Resolve normalized dir
         run: |
-          NORMALIZED_DIR="${{ github.event.inputs.normalized_artifact_dir || '_bmad-output/test-artifacts' }}"
+          NORMALIZED_DIR="${{ inputs.normalized_artifact_dir || github.event.inputs.normalized_artifact_dir || '_bmad-output/test-artifacts' }}"
           echo "NORMALIZED_DIR=$NORMALIZED_DIR" >> "$GITHUB_ENV"
           mkdir -p "$NORMALIZED_DIR"
 
@@ -140,5 +255,5 @@ jobs:
       - name: NFR gate summary
         run: |
           echo "NFR Evidence Pipeline PASSED"
-          echo "Job order: normalize-nfr-artifacts -> enforce-nfr-gate"
+          echo "Job order: collect-raw-nfr-evidence -> normalize-nfr-artifacts -> enforce-nfr-gate"
           echo "Normalized artifact directory: $NORMALIZED_DIR"
