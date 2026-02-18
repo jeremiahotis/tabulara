@@ -1,0 +1,10 @@
+{
+  "source": "manual-seed",
+  "generated_at": "2026-02-18T12:40:00Z",
+  "summary": {
+    "consecutive_passes": 128,
+    "total_runs": 128,
+    "failure_count": 0
+  },
+  "notes": "Replace with actual burn-in runner output"
+}

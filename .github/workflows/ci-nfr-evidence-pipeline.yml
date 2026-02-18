@@ -1,0 +1,144 @@
+name: NFR Evidence Pipeline (Draft)
+
+on:
+  workflow_dispatch:
+    inputs:
+      raw_artifact_dir:
+        description: "Directory containing raw NFR tool outputs"
+        required: false
+        default: "_bmad-output/test-artifacts/raw"
+      normalized_artifact_dir:
+        description: "Directory for normalized NFR artifacts"
+        required: false
+        default: "_bmad-output/test-artifacts"
+
+jobs:
+  normalize-nfr-artifacts:
+    name: Normalize Raw NFR Evidence
+    runs-on: ubuntu-latest
+    outputs:
+      normalized_dir: ${{ steps.vars.outputs.normalized_dir }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve dirs
+        id: vars
+        run: |
+          RAW_DIR="${{ github.event.inputs.raw_artifact_dir || '_bmad-output/test-artifacts/raw' }}"
+          NORMALIZED_DIR="${{ github.event.inputs.normalized_artifact_dir || '_bmad-output/test-artifacts' }}"
+          echo "raw_dir=$RAW_DIR" >> "$GITHUB_OUTPUT"
+          echo "normalized_dir=$NORMALIZED_DIR" >> "$GITHUB_OUTPUT"
+          echo "RAW_DIR=$RAW_DIR" >> "$GITHUB_ENV"
+          echo "NORMALIZED_DIR=$NORMALIZED_DIR" >> "$GITHUB_ENV"
+
+      - name: Ensure output directory exists
+        run: |
+          mkdir -p "$NORMALIZED_DIR"
+
+      - name: Normalize evidence artifacts
+        run: |
+          set -euo pipefail
+          python3 scripts/nfr_normalize.py \
+            --artifact-dir "$NORMALIZED_DIR" \
+            --sast-raw "$RAW_DIR/security-sast-raw.json" \
+            --deps-raw "$RAW_DIR/security-deps-raw.json" \
+            --k6-raw "$RAW_DIR/perf-k6-raw.json" \
+            --burnin-raw "$RAW_DIR/reliability-burnin-raw.json" \
+            --recovery-raw "$RAW_DIR/recovery-rto-rpo-raw.json"
+
+      - name: Upload normalized evidence artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: normalized-nfr-evidence
+          path: |
+            ${{ env.NORMALIZED_DIR }}/security-sast-report.json
+            ${{ env.NORMALIZED_DIR }}/security-deps-report.json
+            ${{ env.NORMALIZED_DIR }}/perf-baseline.json
+            ${{ env.NORMALIZED_DIR }}/perf-k6-summary.json
+            ${{ env.NORMALIZED_DIR }}/reliability-burnin-summary.json
+            ${{ env.NORMALIZED_DIR }}/recovery-rto-rpo.json
+          if-no-files-found: error
+
+  enforce-nfr-gate:
+    name: Enforce NFR Evidence Gate
+    runs-on: ubuntu-latest
+    needs: normalize-nfr-artifacts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve normalized dir
+        run: |
+          NORMALIZED_DIR="${{ github.event.inputs.normalized_artifact_dir || '_bmad-output/test-artifacts' }}"
+          echo "NORMALIZED_DIR=$NORMALIZED_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$NORMALIZED_DIR"
+
+      - name: Download normalized evidence artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: normalized-nfr-evidence
+          path: ${{ env.NORMALIZED_DIR }}
+
+      - name: Verify required evidence artifacts exist
+        run: |
+          set -euo pipefail
+          required=(
+            "security-sast-report.json"
+            "security-deps-report.json"
+            "perf-baseline.json"
+            "perf-k6-summary.json"
+            "reliability-burnin-summary.json"
+            "recovery-rto-rpo.json"
+            "security-authz-negative-report.md"
+            "security-summary.md"
+            "perf-thresholds.md"
+            "perf-regression-trend.csv"
+            "reliability-burnin.log"
+            "recovery-drill-report.md"
+            "nfr-assessment.md"
+          )
+
+          missing=0
+          for f in "${required[@]}"; do
+            p="$NORMALIZED_DIR/$f"
+            if [[ -f "$p" ]]; then
+              echo "OK: $p"
+            else
+              echo "MISSING: $p"
+              missing=$((missing+1))
+            fi
+          done
+
+          if [[ "$missing" -gt 0 ]]; then
+            echo "NFR gate failed: missing $missing required artifact(s)."
+            exit 1
+          fi
+
+      - name: Enforce NFR report status and no UNKNOWN thresholds
+        run: |
+          set -euo pipefail
+          report="$NORMALIZED_DIR/nfr-assessment.md"
+
+          if ! grep -Eq "Overall Status:[[:space:]]*PASS" "$report"; then
+            echo "NFR gate failed: nfr-assessment overall status is not PASS."
+            exit 1
+          fi
+
+          if grep -q "UNKNOWN" "$report"; then
+            echo "NFR gate failed: report still contains UNKNOWN thresholds/values."
+            exit 1
+          fi
+
+      - name: Enforce numeric gates from evidence JSON
+        run: |
+          set -euo pipefail
+          python3 scripts/check_nfr_gate.py --artifact-dir "$NORMALIZED_DIR"
+
+      - name: NFR gate summary
+        run: |
+          echo "NFR Evidence Pipeline PASSED"
+          echo "Job order: normalize-nfr-artifacts -> enforce-nfr-gate"
+          echo "Normalized artifact directory: $NORMALIZED_DIR"

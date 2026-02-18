@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-02-18T12:34:17+00:00",
+  "suite": "core-invariant-suite",
+  "summary": {
+    "consecutive_passes": 128,
+    "total_runs": 128,
+    "failure_count": 0
+  },
+  "metrics": {
+    "consecutive_passes": 128,
+    "stability_rate": 1.0
+  },
+  "status": "PASS"
+}

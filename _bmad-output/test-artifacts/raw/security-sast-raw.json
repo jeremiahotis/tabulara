@@ -1,0 +1,13 @@
+{
+  "source": "manual-seed",
+  "tool": "sast",
+  "generated_at": "2026-02-18T12:40:00Z",
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 2,
+    "low": 5,
+    "info": 12
+  },
+  "notes": "Replace with actual scanner export"
+}

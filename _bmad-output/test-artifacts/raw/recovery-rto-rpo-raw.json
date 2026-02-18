@@ -1,0 +1,12 @@
+{
+  "source": "manual-seed",
+  "generated_at": "2026-02-18T12:40:00Z",
+  "recovery": {
+    "success_rate": 1.0,
+    "drill_count": 3,
+    "success_count": 3,
+    "rto_minutes": 18,
+    "rpo_minutes": 5
+  },
+  "notes": "Replace with actual recovery drill output"
+}

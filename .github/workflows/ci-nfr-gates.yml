@@ -1,0 +1,96 @@
+name: NFR Evidence Gates (Draft)
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_dir:
+        description: "Directory containing NFR evidence artifacts"
+        required: false
+        default: "_bmad-output/test-artifacts"
+  workflow_call:
+    inputs:
+      artifact_dir:
+        required: false
+        type: string
+        default: "_bmad-output/test-artifacts"
+
+jobs:
+  nfr-evidence-gate:
+    name: NFR Evidence Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve artifact directory
+        run: |
+          ARTIFACT_DIR="${{ inputs.artifact_dir || github.event.inputs.artifact_dir || '_bmad-output/test-artifacts' }}"
+          echo "ARTIFACT_DIR=$ARTIFACT_DIR" >> "$GITHUB_ENV"
+          echo "Using artifact directory: $ARTIFACT_DIR"
+
+      - name: Verify required evidence artifacts exist
+        run: |
+          set -euo pipefail
+          required=(
+            "security-sast-report.json"
+            "security-deps-report.json"
+            "security-authz-negative-report.md"
+            "security-summary.md"
+            "perf-baseline.json"
+            "perf-k6-summary.json"
+            "perf-thresholds.md"
+            "perf-regression-trend.csv"
+            "reliability-burnin.log"
+            "reliability-burnin-summary.json"
+            "recovery-drill-report.md"
+            "recovery-rto-rpo.json"
+            "nfr-assessment.md"
+          )
+
+          missing=0
+          for f in "${required[@]}"; do
+            p="$ARTIFACT_DIR/$f"
+            if [[ -f "$p" ]]; then
+              echo "OK: $p"
+            else
+              echo "MISSING: $p"
+              missing=$((missing+1))
+            fi
+          done
+
+          if [[ "$missing" -gt 0 ]]; then
+            echo "NFR gate failed: missing $missing required artifact(s)."
+            exit 1
+          fi
+
+      - name: Enforce NFR report status and no UNKNOWN thresholds
+        run: |
+          set -euo pipefail
+          report="$ARTIFACT_DIR/nfr-assessment.md"
+
+          if ! grep -Eq "Overall Status:[[:space:]]*PASS" "$report"; then
+            echo "NFR gate failed: nfr-assessment overall status is not PASS."
+            exit 1
+          fi
+
+          if grep -q "UNKNOWN" "$report"; then
+            echo "NFR gate failed: report still contains UNKNOWN thresholds/values."
+            exit 1
+          fi
+
+      - name: Enforce numeric gates from evidence JSON
+        run: |
+          set -euo pipefail
+          python3 scripts/check_nfr_gate.py --artifact-dir "$ARTIFACT_DIR"
+
+      - name: Gate summary
+        run: |
+          echo "NFR evidence gate PASSED"
+          echo "Artifacts: $ARTIFACT_DIR"
+          echo "Report: $ARTIFACT_DIR/nfr-assessment.md"
+
+# Draft notes:
+# - This workflow is strict by design and expects standardized JSON schemas for security/reliability artifacts.
+# - If your scanner output schema differs, adapt field mapping in the Python gate step.
+# - Recommended usage: run after security/performance/reliability evidence jobs complete.

@@ -1,0 +1,12 @@
+{
+  "tool": "k6",
+  "generated_at": "2026-02-18T12:34:17+00:00",
+  "scenario": "normalized-k6-input",
+  "metrics": {
+    "http_req_duration_p95_ms": 240,
+    "http_req_duration_p99_ms": 610,
+    "throughput_rps": 52.4,
+    "error_rate": 0.002
+  },
+  "status": "PASS"
+}

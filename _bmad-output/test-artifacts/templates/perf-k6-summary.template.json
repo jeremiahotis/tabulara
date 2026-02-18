@@ -1,0 +1,12 @@
+{
+  "tool": "k6",
+  "generated_at": "2026-02-18T00:00:00Z",
+  "scenario": "core-import-extract-validate-export",
+  "metrics": {
+    "http_req_duration_p95_ms": 0,
+    "http_req_duration_p99_ms": 0,
+    "throughput_rps": 0,
+    "error_rate": 0.0
+  },
+  "status": "PASS"
+}

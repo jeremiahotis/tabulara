@@ -1,0 +1,3 @@
+[2026-02-18T12:45:00Z] burn-in start
+[2026-02-18T12:45:05Z] suite=core-invariant-suite consecutive_passes=128 failures=0
+[2026-02-18T12:45:05Z] burn-in result=PASS

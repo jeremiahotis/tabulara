@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-02-18T12:34:17+00:00",
+  "recovery": {
+    "success_rate": 1.0,
+    "drill_count": 3,
+    "success_count": 3,
+    "rto_minutes": 18,
+    "rpo_minutes": 5
+  },
+  "summary": {
+    "success_rate": 1.0,
+    "rto_minutes": 18,
+    "rpo_minutes": 5
+  },
+  "status": "PASS"
+}

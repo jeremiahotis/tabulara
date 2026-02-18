@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-02-18T12:34:17+00:00",
+  "summary": {
+    "api_command_latency_p95_ms": 0,
+    "api_command_latency_p99_ms": 0,
+    "queue_advance_latency_ms": 0,
+    "highlight_sync_latency_ms": 0,
+    "regression_pct": 4.8
+  },
+  "thresholds": {
+    "api_command_latency_p95_ms_max": 300,
+    "api_command_latency_p99_ms_max": 700,
+    "queue_advance_latency_ms_max": 150,
+    "highlight_sync_latency_ms_max": 100,
+    "regression_pct_max": 10.0
+  },
+  "comparison": {
+    "baseline_id": "normalized-baseline",
+    "regression_pct": 4.8
+  },
+  "status": "PASS"
+}
