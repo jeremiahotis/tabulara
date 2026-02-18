@@ -1,0 +1,209 @@
+name: Test Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: test-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION_DEFAULT: "24"
+  TOTAL_SHARDS: "4"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve Node version
+        id: node-version
+        shell: bash
+        run: |
+          if [[ -f .nvmrc ]]; then
+            echo "value=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${NODE_VERSION_DEFAULT}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.node-version.outputs.value }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint (if configured)
+        run: npm run lint --if-present
+
+  test:
+    name: Test (Shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve Node version
+        id: node-version
+        shell: bash
+        run: |
+          if [[ -f .nvmrc ]]; then
+            echo "value=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${NODE_VERSION_DEFAULT}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.node-version.outputs.value }}
+          cache: npm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tests (sharded)
+        env:
+          CI: "true"
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failure-shard-${{ matrix.shard }}
+          path: |
+            test-results/
+            test-results/html-report/
+            test-results/junit.xml
+          retention-days: 30
+
+  burn-in:
+    name: Burn-In (10x)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: test
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve Node version
+        id: node-version
+        shell: bash
+        run: |
+          if [[ -f .nvmrc ]]; then
+            echo "value=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${NODE_VERSION_DEFAULT}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.node-version.outputs.value }}
+          cache: npm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run burn-in loop
+        env:
+          CI: "true"
+        shell: bash
+        run: scripts/burn-in.sh 10
+
+      - name: Upload burn-in artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-in-failure
+          path: |
+            test-results/
+            test-results/html-report/
+            test-results/junit.xml
+          retention-days: 30
+
+  report:
+    name: Quality Gate Report
+    runs-on: ubuntu-latest
+    needs: [lint, test, burn-in]
+    if: always()
+    steps:
+      - name: Publish pipeline summary
+        shell: bash
+        run: |
+          echo "## CI Quality Gate Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Lint: \`${{ needs.lint.result }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Test shards: \`${{ needs.test.result }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Burn-in: \`${{ needs.burn-in.result }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Artifact retention: 30 days (failure-only uploads)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Gate Rules" >> "$GITHUB_STEP_SUMMARY"
+          echo "- P0 gate: 100% critical checks must pass (lint + tests)." >> "$GITHUB_STEP_SUMMARY"
+          echo "- P1 gate: Burn-in must not detect flakiness when it runs." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Optional Slack notification on failure
+        if: ${{ (needs.lint.result != 'success' || needs.test.result != 'success' || needs.burn-in.result == 'failure') && secrets.CI_SLACK_WEBHOOK != '' }}
+        env:
+          CI_SLACK_WEBHOOK: ${{ secrets.CI_SLACK_WEBHOOK }}
+        shell: bash
+        run: |
+          payload=$(cat <<'JSON'
+          {
+            "text": "Test Pipeline failed for ${{ github.repository }} on ${{ github.ref_name }}. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          JSON
+          )
+          curl -fsSL -X POST -H "Content-Type: application/json" --data "$payload" "$CI_SLACK_WEBHOOK"
+
+      - name: Enforce quality gates
+        if: ${{ needs.lint.result != 'success' || needs.test.result != 'success' || needs.burn-in.result == 'failure' }}
+        run: |
+          echo "Quality gates failed."
+          exit 1

@@ -3,6 +3,8 @@ title: Tabulara Full-System Architecture
 date: 2026-02-18
 owner: Jeremiah
 status: Architecture Baseline - Implementation Ready
+canonical: false
+document_role: supplemental-reference
 related_prd: /Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/tabulara-prd-command-event-model.md
 related_state_spec: /Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/tabulara-state-transition-invariant-spec.md
 related_dispatcher_design: /Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/tabulara-command-dispatcher-guard-layer-tech-design.md
