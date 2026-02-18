@@ -1,0 +1,34 @@
+{
+  "success": true,
+  "subprocess": "atdd-api-tests",
+  "tests": [
+    {
+      "file": "tests/api/story-1-1-initial-project.spec.ts",
+      "content": "import { test, expect } from '@playwright/test';\nimport { createCommandEnvelope } from '../support/fixtures/factories/command-envelope-factory';\n\ntest.describe('Story 1.1 API acceptance tests (ATDD RED)', () => {\n  test.skip('[P0][AC1] should expose /api/v1 health status for desktop + local backend readiness', async ({ request }) => {\n    // Given a freshly scaffolded local app runtime\n    // When the versioned health endpoint is queried\n    const response = await request.get('/api/v1/health');\n\n    // Then the API surface and health contract are available\n    expect(response.status()).toBe(200);\n    await expect(response).toBeOK();\n\n    const body = await response.json();\n    expect(body).toMatchObject({\n      status: 'ok',\n      services: {\n        frontend: 'up',\n        backend: 'up',\n      },\n      apiVersion: 'v1',\n    });\n  });\n\n  test.skip('[P0][AC1] should accept a valid command envelope on /api/v1 command dispatcher', async ({ request }) => {\n    // Given a valid command payload\n    const envelope = createCommandEnvelope();\n\n    // When command is dispatched\n    const response = await request.post('/api/v1/commands/dispatch', {\n      data: envelope,\n    });\n\n    // Then mutation endpoint under /api/v1 is available and accepts envelope\n    expect(response.status()).toBe(202);\n    const body = await response.json();\n    expect(body).toMatchObject({\n      accepted: true,\n      command_id: envelope.command_id,\n    });\n  });\n\n  test.skip('[P0][AC2] should reject missing envelope fields with deterministic machine-readable codes and no mutation', async ({ request }) => {\n    // Given an invalid command payload missing required fields\n    const invalidEnvelope = {\n      type: 'session.initialize',\n      payload: { document_path: '/tmp/demo.pdf' },\n    };\n\n    // When command is dispatched\n    const response = await request.post('/api/v1/commands/dispatch', {\n      data: invalidEnvelope,\n    });\n\n    // Then the command is rejected and no state mutation/event append occurs\n    expect(response.status()).toBe(400);\n    const body = await response.json();\n    expect(body).toMatchObject({\n      error: {\n        code: 'CMD_ENVELOPE_VALIDATION_FAILED',\n        category: 'validation',\n        missing_fields: ['command_id', 'actor', 'timestamp'],\n      },\n      mutation_applied: false,\n      event_appended: false,\n    });\n  });\n\n  test.skip('[P1][AC2] should return deterministic per-field validation details for each required envelope field', async ({ request }) => {\n    // Given command envelopes with one missing required field each\n    const requiredFields = ['command_id', 'type', 'actor', 'timestamp', 'payload'] as const;\n\n    for (const field of requiredFields) {\n      const envelope = createCommandEnvelope();\n      const invalid = { ...envelope } as Record<string, unknown>;\n      delete invalid[field];\n\n      // When dispatcher validates the envelope\n      const response = await request.post('/api/v1/commands/dispatch', {\n        data: invalid,\n      });\n\n      // Then deterministic error codes and details are returned for that field\n      expect(response.status()).toBe(400);\n      const body = await response.json();\n      expect(body.error.code).toBe('CMD_ENVELOPE_VALIDATION_FAILED');\n      expect(body.error.missing_fields).toContain(field);\n      expect(body.error.details[0]).toMatchObject({\n        field,\n        reason: 'required',\n      });\n      expect(body.mutation_applied).toBe(false);\n      expect(body.event_appended).toBe(false);\n    }\n  });\n});\n",
+      "description": "ATDD API tests for Story 1.1 command envelope + /api/v1 readiness (RED PHASE)",
+      "expected_to_fail": true,
+      "acceptance_criteria_covered": [
+        "AC1: /api/v1 route group and health checks are available",
+        "AC2: Missing envelope fields rejected with deterministic machine-readable codes",
+        "AC2: No mutation/event append on invalid envelope"
+      ],
+      "priority_coverage": {
+        "P0": 3,
+        "P1": 1,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "commandEnvelopeFactory"
+  ],
+  "knowledge_fragments_used": [
+    "api-request",
+    "data-factories",
+    "api-testing-patterns"
+  ],
+  "test_count": 4,
+  "tdd_phase": "RED",
+  "summary": "Generated 4 FAILING API tests for Story 1.1"
+}
