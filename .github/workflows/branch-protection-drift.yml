@@ -10,6 +10,7 @@ jobs:
     name: Verify Main Branch Protection
     runs-on: ubuntu-latest
     permissions:
+      administration: read
       contents: read
 
     steps:
