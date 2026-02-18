@@ -4,7 +4,7 @@ import process from 'node:process';
 const baseURL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests',
   fullyParallel: true,
   timeout: 60_000,
   expect: {
@@ -28,8 +28,16 @@ export default defineConfig({
   outputDir: 'test-results/artifacts',
   projects: [
     {
-      name: 'chromium',
+      name: 'chromium-e2e',
+      testMatch: /e2e\/.*\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'api',
+      testMatch: /api\/.*\.spec\.ts$/,
+      use: {
+        baseURL: process.env.API_URL ?? baseURL,
+      },
     },
   ],
 });

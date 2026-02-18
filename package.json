@@ -5,9 +5,14 @@
   "description": "Tabulara local-first document structuring desktop application",
   "type": "module",
   "scripts": {
-    "test:e2e": "env -u NO_COLOR playwright test",
-    "test:e2e:headed": "env -u NO_COLOR playwright test --headed",
-    "test:e2e:debug": "env -u NO_COLOR playwright test --debug"
+    "test:e2e": "env -u NO_COLOR playwright test --project=chromium-e2e",
+    "test:e2e:headed": "env -u NO_COLOR playwright test --project=chromium-e2e --headed",
+    "test:e2e:debug": "env -u NO_COLOR playwright test --project=chromium-e2e --debug",
+    "test:e2e:p0": "env -u NO_COLOR playwright test --project=chromium-e2e --grep \"\\\\[P0\\\\]\"",
+    "test:e2e:p1": "env -u NO_COLOR playwright test --project=chromium-e2e --grep \"\\\\[P0\\\\]|\\\\[P1\\\\]\"",
+    "test:api": "env -u NO_COLOR playwright test --project=api",
+    "test:api:p0": "env -u NO_COLOR playwright test --project=api --grep \"\\\\[P0\\\\]\"",
+    "test:api:p1": "env -u NO_COLOR playwright test --project=api --grep \"\\\\[P0\\\\]|\\\\[P1\\\\]\""
   },
   "devDependencies": {
     "@faker-js/faker": "latest",

@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "subprocess": "e2e-tests",
+  "tests": [
+    {
+      "file": "tests/e2e/story-1-1-initial-project.automation.spec.ts",
+      "content": "import { test, expect } from '../support/fixtures';\n\ntest.describe('Story 1.1 startup and command envelope automation', () => {\n  test('[P0][AC1] should show shell startup readiness and /api/v1 availability', async ({ page }) => {\n    const healthResponse = page.waitForResponse(\n      (response) =>\n        response.url().includes('/api/v1/health') &&\n        response.request().method() === 'GET' &&\n        response.status() === 200,\n    );\n\n    await page.goto('/');\n    await healthResponse;\n\n    await expect(page.getByTestId('app-shell-ready')).toHaveText('ready');\n    await expect(page.getByTestId('frontend-health-status')).toHaveText('up');\n    await expect(page.getByTestId('backend-health-status')).toHaveText('up');\n    await expect(page.getByTestId('api-version-badge')).toHaveText('/api/v1');\n  });\n\n  test('[P1][AC2] should render deterministic validation errors for missing command envelope fields', async ({\n    page,\n  }) => {\n    const dispatchResponse = page.waitForResponse(\n      (response) =>\n        response.url().includes('/api/v1/commands/dispatch') &&\n        response.request().method() === 'POST',\n    );\n\n    await page.goto('/');\n    await page.getByTestId('command-type-input').fill('session.initialize');\n    await page.getByTestId('command-submit-button').click();\n\n    const response = await dispatchResponse;\n    expect(response.status()).toBe(400);\n\n    await expect(page.getByTestId('command-error-code')).toHaveText(\n      'CMD_ENVELOPE_VALIDATION_FAILED',\n    );\n    await expect(page.getByTestId('command-error-missing-fields')).toContainText(\n      'command_id, actor, timestamp, payload',\n    );\n    await expect(page.getByTestId('mutation-state')).toHaveText('none');\n    await expect(page.getByTestId('event-append-state')).toHaveText('none');\n  });\n});\n",
+      "description": "E2E startup and command-envelope validation UX coverage for Story 1.1",
+      "priority_coverage": {
+        "P0": 1,
+        "P1": 1,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "authenticatedUserFixture",
+    "v1RoutesNetworkMock"
+  ],
+  "knowledge_fragments_used": [
+    "network-first",
+    "selector-resilience",
+    "fixture-architecture",
+    "playwright-cli"
+  ],
+  "test_count": 2,
+  "summary": "Generated 2 E2E tests focused on startup readiness and deterministic dispatcher validation UX"
+}

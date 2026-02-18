@@ -10,13 +10,19 @@
 
 ## Run Tests
 
-- Headless: `npm run test:e2e`
-- Headed: `npm run test:e2e:headed`
-- Debug: `npm run test:e2e:debug`
+- E2E headless: `npm run test:e2e`
+- E2E headed: `npm run test:e2e:headed`
+- E2E debug: `npm run test:e2e:debug`
+- E2E P0 only: `npm run test:e2e:p0`
+- E2E P0 + P1: `npm run test:e2e:p1`
+- API suite: `npm run test:api`
+- API P0 only: `npm run test:api:p0`
+- API P0 + P1: `npm run test:api:p1`
 
 ## Architecture Overview
 
 - `tests/e2e/`: End-to-end specifications
+- `tests/api/`: API/service-layer specifications
 - `tests/support/fixtures/`: Merged fixtures and data factories
 - `tests/support/helpers/`: API/network/auth helpers
 - `tests/support/page-objects/`: Optional page object wrappers
