@@ -69,7 +69,7 @@ jobs:
           set -euo pipefail
           report="$ARTIFACT_DIR/nfr-assessment.md"
 
-          if ! grep -Eq "Overall Status:[[:space:]]*PASS" "$report"; then
+          if ! grep -Eq "Overall Status:.*PASS" "$report"; then
             echo "NFR gate failed: nfr-assessment overall status is not PASS."
             exit 1
           fi
