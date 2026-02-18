@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
+    "dev:web": "vite --host 127.0.0.1 --port 4173 --strictPort",
+    "dev:api": "node scripts/local-api-server.mjs",
+    "build:web": "vite build",
     "test:e2e": "env -u NO_COLOR playwright test --project=chromium-e2e",
     "test:e2e:headed": "env -u NO_COLOR playwright test --project=chromium-e2e --headed",
     "test:e2e:debug": "env -u NO_COLOR playwright test --project=chromium-e2e --debug",
@@ -16,10 +19,18 @@
     "test:api:p1": "env -u NO_COLOR playwright test --project=api --grep \"\\\\[P0\\\\]|\\\\[P1\\\\]\""
   },
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
     "@faker-js/faker": "latest",
     "@playwright/test": "^1.54.1",
     "@seontechnologies/playwright-utils": "latest",
     "tsx": "^4.19.2",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }

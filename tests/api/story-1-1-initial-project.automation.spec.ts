@@ -28,7 +28,12 @@ test.describe('Story 1.1 API automation coverage', () => {
   }) => {
     const envelope = createCommandEnvelope();
 
-    const { status, body } = await apiRequest<{ accepted: boolean; command_id: string }>({
+    const { status, body } = await apiRequest<{
+      accepted: boolean;
+      command_id: string;
+      mutation_applied: boolean;
+      event_appended: boolean;
+    }>({
       method: 'POST',
       path: '/api/v1/commands/dispatch',
       body: envelope,
@@ -38,6 +43,8 @@ test.describe('Story 1.1 API automation coverage', () => {
     expect(body).toMatchObject({
       accepted: true,
       command_id: envelope.command_id,
+      mutation_applied: true,
+      event_appended: true,
     });
   });
 
