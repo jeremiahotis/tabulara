@@ -16,6 +16,7 @@ inputDocuments:
   - /Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/tabulara-command-type-catalog.md
   - /Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/tabulara-full-system-architecture.md
 workflowType: 'architecture'
+canonical: true
 lastStep: 8
 status: 'complete'
 completedAt: '2026-02-18'

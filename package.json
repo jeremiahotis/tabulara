@@ -1,0 +1,19 @@
+{
+  "name": "tabulara",
+  "version": "0.1.1-rc1",
+  "private": true,
+  "description": "Tabulara local-first document structuring desktop application",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "env -u NO_COLOR playwright test",
+    "test:e2e:headed": "env -u NO_COLOR playwright test --headed",
+    "test:e2e:debug": "env -u NO_COLOR playwright test --debug"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "latest",
+    "@playwright/test": "^1.54.1",
+    "@seontechnologies/playwright-utils": "latest",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.2"
+  }
+}
