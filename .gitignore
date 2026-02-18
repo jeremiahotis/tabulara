@@ -1,0 +1,8 @@
+# Local machine artifacts
+.DS_Store
+
+# Dependencies
+node_modules/
+
+# Generated test output
+test-results/
