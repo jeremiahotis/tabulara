@@ -41,7 +41,7 @@ story_location: '_bmad-output/implementation-artifacts'
 
 development_status:
   epic-1: in-progress
-  1-1-set-up-initial-project-from-starter-template: ready-for-dev
+  1-1-set-up-initial-project-from-starter-template: review
   1-2-create-and-pin-sessions-through-command-handlers: ready-for-dev
   1-3-import-documents-with-duplicate-handling: ready-for-dev
   1-4-apply-preprocessing-and-controlled-reprocessing: ready-for-dev

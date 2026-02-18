@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tabulara</title>
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        color: #111827;
+        background: #f9fafb;
+      }
+
+      .shell {
+        max-width: 720px;
+        margin: 0 auto;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+      }
+
+      .row {
+        margin: 8px 0;
+      }
+
+      label {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 6px;
+      }
+
+      input {
+        width: 100%;
+        max-width: 360px;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+      }
+
+      button {
+        margin-top: 10px;
+        padding: 8px 14px;
+        border: 1px solid #111827;
+        border-radius: 6px;
+        background: #111827;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <h1>Tabulara Starter Shell</h1>
+      <p class="row">Shell: <span data-testid="app-shell-ready">ready</span></p>
+      <p class="row">Frontend: <span data-testid="frontend-health-status">up</span></p>
+      <p class="row">Backend: <span data-testid="backend-health-status">pending</span></p>
+      <p class="row">API: <span data-testid="api-version-badge">/api/v1</span></p>
+
+      <hr />
+
+      <label for="commandType">Command type</label>
+      <input id="commandType" data-testid="command-type-input" placeholder="session.initialize" />
+      <button data-testid="command-submit-button" type="button">Submit Command</button>
+
+      <p class="row">Error code: <span data-testid="command-error-code"></span></p>
+      <p class="row">Missing fields: <span data-testid="command-error-missing-fields"></span></p>
+      <p class="row">Mutation: <span data-testid="mutation-state">none</span></p>
+      <p class="row">Event append: <span data-testid="event-append-state">none</span></p>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

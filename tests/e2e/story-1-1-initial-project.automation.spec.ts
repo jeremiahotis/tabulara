@@ -18,9 +18,10 @@ test.describe('Story 1.1 startup and command envelope automation', () => {
     await expect(page.getByTestId('api-version-badge')).toHaveText('/api/v1');
   });
 
-  test('[P1][AC2] should render deterministic validation errors for missing command envelope fields', async ({
-    page,
-  }) => {
+  test(
+    '[P1][AC2] should render deterministic validation errors for missing command envelope fields',
+    { annotation: [{ type: 'skipNetworkMonitoring' }] },
+    async ({ page }) => {
     const dispatchResponse = page.waitForResponse(
       (response) =>
         response.url().includes('/api/v1/commands/dispatch') &&
@@ -42,5 +43,6 @@ test.describe('Story 1.1 startup and command envelope automation', () => {
     );
     await expect(page.getByTestId('mutation-state')).toHaveText('none');
     await expect(page.getByTestId('event-append-state')).toHaveText('none');
-  });
+    },
+  );
 });

@@ -26,6 +26,12 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   outputDir: 'test-results/artifacts',
+  webServer: {
+    command: 'npm run dev',
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 30_000,
+  },
   projects: [
     {
       name: 'chromium-e2e',

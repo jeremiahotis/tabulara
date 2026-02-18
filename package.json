@@ -5,6 +5,7 @@
   "description": "Tabulara local-first document structuring desktop application",
   "type": "module",
   "scripts": {
+    "dev": "node scripts/dev-server.mjs",
     "test:e2e": "env -u NO_COLOR playwright test --project=chromium-e2e",
     "test:e2e:headed": "env -u NO_COLOR playwright test --project=chromium-e2e --headed",
     "test:e2e:debug": "env -u NO_COLOR playwright test --project=chromium-e2e --debug",
