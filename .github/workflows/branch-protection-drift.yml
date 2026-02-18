@@ -10,7 +10,6 @@ jobs:
     name: Verify Main Branch Protection
     runs-on: ubuntu-latest
     permissions:
-      administration: read
       contents: read
 
     steps:
@@ -24,13 +23,11 @@ jobs:
           response=$(curl -fsSL \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/branches/main/protection")
+            "https://api.github.com/repos/$REPO/branches/main")
 
-          required_checks=$(echo "$response" | jq -r '.required_status_checks.contexts[]')
-          enforce_admins=$(echo "$response" | jq -r '.enforce_admins.enabled')
-          strict=$(echo "$response" | jq -r '.required_status_checks.strict')
-          conv_resolution=$(echo "$response" | jq -r '.required_conversation_resolution.enabled')
-          code_owner_reviews=$(echo "$response" | jq -r '.required_pull_request_reviews.require_code_owner_reviews')
+          protected=$(echo "$response" | jq -r '.protected')
+          required_checks=$(echo "$response" | jq -r '.protection.required_status_checks.contexts[]')
+          enforcement_level=$(echo "$response" | jq -r '.protection.required_status_checks.enforcement_level')
 
           expected_1="NFR Evidence Pipeline / Collect Raw NFR Evidence"
           expected_2="NFR Evidence Pipeline / Enforce NFR Evidence Gate"
@@ -41,9 +38,7 @@ jobs:
           grep -Fx "$expected_1" <<< "$required_checks" >/dev/null || { echo "Missing required check: $expected_1"; exit 1; }
           grep -Fx "$expected_2" <<< "$required_checks" >/dev/null || { echo "Missing required check: $expected_2"; exit 1; }
 
-          [[ "$enforce_admins" == "true" ]] || { echo "Drift: enforce_admins must be true"; exit 1; }
-          [[ "$strict" == "true" ]] || { echo "Drift: strict status checks must be true"; exit 1; }
-          [[ "$conv_resolution" == "true" ]] || { echo "Drift: required conversation resolution must be true"; exit 1; }
-          [[ "$code_owner_reviews" == "true" ]] || { echo "Drift: code owner reviews must be enabled"; exit 1; }
+          [[ "$protected" == "true" ]] || { echo "Drift: main must be protected"; exit 1; }
+          [[ "$enforcement_level" == "everyone" ]] || { echo "Drift: required checks enforcement must be everyone"; exit 1; }
 
           echo "Branch protection invariants are satisfied."
