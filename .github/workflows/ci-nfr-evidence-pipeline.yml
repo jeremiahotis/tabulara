@@ -67,6 +67,16 @@ jobs:
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" >/dev/null 2>&1 || true' EXIT
 
+          for i in $(seq 1 30); do
+            if curl -sf "http://127.0.0.1:18080/" >/dev/null; then
+              echo "Local HTTP target is ready."
+              break
+            fi
+            sleep 0.2
+          done
+
+          curl -sf "http://127.0.0.1:18080/" >/dev/null
+
           TARGET_URL="http://127.0.0.1:18080" k6 run scripts/nfr_k6_smoke.js --summary-export "$RAW_DIR/perf-k6-tool-export.json"
 
           python3 scripts/nfr_collect_raw.py \
