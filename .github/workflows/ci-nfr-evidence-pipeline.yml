@@ -56,8 +56,6 @@ jobs:
       - name: Collect raw tool exports
         run: |
           set -euo pipefail
-          echo "Intentional guard validation failure"
-          exit 1
           mkdir -p "$RAW_DIR"
 
           bandit -r scripts -f json -o "$RAW_DIR/security-sast-bandit.json" || true
