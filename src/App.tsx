@@ -22,12 +22,27 @@ type DispatchAcceptedResponse = {
   accepted: boolean;
   mutation_applied?: boolean;
   event_appended?: boolean;
+  session?: {
+    id?: string;
+  };
+};
+
+type CommandEnvelope = {
+  command_id: string;
+  type: string;
+  actor: {
+    id: string;
+    role: 'ops-user';
+  };
+  timestamp: string;
+  payload: Record<string, unknown>;
 };
 
 export function App() {
   const [backendHealth, setBackendHealth] = useState('pending');
   const [apiBadge, setApiBadge] = useState('/api/v1');
   const [commandType, setCommandType] = useState('');
+  const [lastSessionId, setLastSessionId] = useState('');
   const [errorCode, setErrorCode] = useState('');
   const [missingFields, setMissingFields] = useState('');
   const [mutationState, setMutationState] = useState('none');
@@ -46,28 +61,123 @@ export function App() {
     });
   }, [loadHealth]);
 
-  const submitCommand = useCallback(async () => {
+  const buildCommandEnvelope = useCallback(
+    (type: string, payload: Record<string, unknown>): CommandEnvelope => ({
+      command_id: crypto.randomUUID(),
+      type,
+      actor: {
+        id: 'ops-ui-user',
+        role: 'ops-user',
+      },
+      timestamp: new Date().toISOString(),
+      payload,
+    }),
+    [],
+  );
+
+  const dispatchCommand = useCallback(async (body: unknown) => {
     const response = await fetch('/api/v1/commands/dispatch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: commandType.trim() || undefined }),
+      body: JSON.stringify(body),
     });
+    const parsedBody = (await response.json()) as DispatchAcceptedResponse | DispatchErrorResponse;
 
-    if (!response.ok) {
-      const body = (await response.json()) as DispatchErrorResponse;
-      setErrorCode(body.error?.code ?? '');
-      setMissingFields((body.error?.missing_fields ?? []).join(', '));
-      setMutationState(body.mutation_applied ? 'applied' : 'none');
-      setEventAppendState(body.event_appended ? 'appended' : 'none');
+    return {
+      response,
+      body: parsedBody,
+    };
+  }, []);
+
+  const applyDispatchResult = useCallback(
+    (response: Response, body: DispatchAcceptedResponse | DispatchErrorResponse) => {
+      if (!response.ok) {
+        const errorBody = body as DispatchErrorResponse;
+        setErrorCode(errorBody.error?.code ?? '');
+        setMissingFields((errorBody.error?.missing_fields ?? []).join(', '));
+        setMutationState(errorBody.mutation_applied ? 'applied' : 'none');
+        setEventAppendState(errorBody.event_appended ? 'appended' : 'none');
+        return false;
+      }
+
+      const acceptedBody = body as DispatchAcceptedResponse;
+      setErrorCode('');
+      setMissingFields('');
+      setMutationState(acceptedBody.mutation_applied ? 'applied' : 'none');
+      setEventAppendState(acceptedBody.event_appended ? 'appended' : 'none');
+
+      const returnedSessionId = acceptedBody.session?.id;
+      if (typeof returnedSessionId === 'string' && returnedSessionId.trim().length > 0) {
+        setLastSessionId(returnedSessionId);
+      }
+
+      return true;
+    },
+    [],
+  );
+
+  const submitCommand = useCallback(async () => {
+    const normalizedType = commandType.trim();
+
+    if (normalizedType.length === 0) {
+      const { response, body } = await dispatchCommand({});
+      applyDispatchResult(response, body);
       return;
     }
 
-    const body = (await response.json()) as DispatchAcceptedResponse;
-    setErrorCode('');
-    setMissingFields('');
-    setMutationState(body.mutation_applied ? 'applied' : 'none');
-    setEventAppendState(body.event_appended ? 'appended' : 'none');
-  }, [commandType]);
+    if (normalizedType === 'PinSession') {
+      let resolvedSessionId = lastSessionId;
+
+      if (!resolvedSessionId) {
+        const createBootstrapEnvelope = buildCommandEnvelope('CreateSession', {
+          project_id: 'project-ui',
+          schema_id: 'schema-ui',
+        });
+        const createBootstrapResult = await dispatchCommand(createBootstrapEnvelope);
+        const bootstrapSucceeded = applyDispatchResult(
+          createBootstrapResult.response,
+          createBootstrapResult.body,
+        );
+
+        if (!bootstrapSucceeded) {
+          return;
+        }
+
+        const bootstrapSessionId = (createBootstrapResult.body as DispatchAcceptedResponse).session?.id;
+        if (!bootstrapSessionId || bootstrapSessionId.trim().length === 0) {
+          setErrorCode('PRECONDITION_FAILED');
+          setMissingFields('session_id');
+          setMutationState('none');
+          setEventAppendState('none');
+          return;
+        }
+
+        resolvedSessionId = bootstrapSessionId;
+      }
+
+      const pinEnvelope = buildCommandEnvelope('PinSession', {
+        session_id: resolvedSessionId,
+        pinned: true,
+      });
+      const pinResult = await dispatchCommand(pinEnvelope);
+      applyDispatchResult(pinResult.response, pinResult.body);
+      return;
+    }
+
+    if (normalizedType === 'CreateSession') {
+      const createEnvelope = buildCommandEnvelope('CreateSession', {
+        project_id: 'project-ui',
+        schema_id: 'schema-ui',
+      });
+      const createResult = await dispatchCommand(createEnvelope);
+      applyDispatchResult(createResult.response, createResult.body);
+      return;
+    }
+
+    const unsupportedEnvelope = buildCommandEnvelope(normalizedType, {});
+    const unsupportedResult = await dispatchCommand(unsupportedEnvelope);
+    applyDispatchResult(unsupportedResult.response, unsupportedResult.body);
+  }, [applyDispatchResult, buildCommandEnvelope, commandType, dispatchCommand, lastSessionId]);
 
   return (
     <main className="shell">
@@ -91,7 +201,7 @@ export function App() {
       <input
         id="commandType"
         data-testid="command-type-input"
-        placeholder="session.initialize"
+        placeholder="CreateSession"
         value={commandType}
         onChange={(event) => setCommandType(event.target.value)}
       />

@@ -29,7 +29,6 @@ test.describe('Story 1.1 startup and command envelope automation', () => {
     );
 
     await page.goto('/');
-    await page.getByTestId('command-type-input').fill('session.initialize');
     await page.getByTestId('command-submit-button').click();
 
     const response = await dispatchResponse;
@@ -39,7 +38,7 @@ test.describe('Story 1.1 startup and command envelope automation', () => {
       'CMD_ENVELOPE_VALIDATION_FAILED',
     );
     await expect(page.getByTestId('command-error-missing-fields')).toContainText(
-      'command_id, actor, timestamp, payload',
+      'command_id, type, actor, timestamp, payload',
     );
     await expect(page.getByTestId('mutation-state')).toHaveText('none');
     await expect(page.getByTestId('event-append-state')).toHaveText('none');

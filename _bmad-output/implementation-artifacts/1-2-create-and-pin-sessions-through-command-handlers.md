@@ -1,6 +1,6 @@
 # Story 1.2: Create and Pin Sessions Through Command Handlers
 
-Status: review
+Status: done
 
 ## Story
 
@@ -57,6 +57,10 @@ GPT-5 Codex
 - `npm run test:api -- --project=api tests/api/story-1-2-create-and-pin-sessions-through-command-handlers.automation.spec.ts` (green)
 - `npm run test:api` (green; 10 passed, 8 skipped)
 - `npm run test:e2e` (green; 6 passed, 5 skipped)
+- `npm run test:api -- --project=api tests/api/story-1-1-initial-project.automation.spec.ts tests/api/story-1-2-create-and-pin-sessions-through-command-handlers.automation.spec.ts` (green)
+- `npm run test:e2e -- --project=chromium-e2e tests/e2e/story-1-1-initial-project.automation.spec.ts tests/e2e/story-1-2-create-and-pin-sessions-through-command-handlers.automation.spec.ts` (green)
+- `npm run test:api` (green; 13 passed, 8 skipped)
+- `npm run test:e2e` (green; 6 passed, 5 skipped)
 
 ### Completion Notes List
 
@@ -67,14 +71,29 @@ GPT-5 Codex
   - Session creation output shape and `SessionCreated.caused_by` linkage
   - Atomic pin/unpin transaction metadata and event emission
   - Command-only mutation safeguards and cross-command `caused_by` traceability
+- Hardened command envelope validation to reject malformed metadata (`command_id`, `actor`, `timestamp`, payload shape) even when required fields are present.
+- Added deterministic unsupported command rejection (`CMD_TYPE_UNSUPPORTED`) and removed fallback success responses for unknown command types.
+- Added duplicate `command_id` conflict handling (`IDEMPOTENCY_CONFLICT`) to prevent replayed command mutation/event duplication.
+- Updated UI command submission to send full command envelopes for `CreateSession` and `PinSession`, including automatic bootstrap session creation for first-time pin flows.
+- Replaced mocked Story 1.2 E2E success checks with real backend-backed assertions for `SessionCreated`/`SessionPinned` behavior.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-2-create-and-pin-sessions-through-command-handlers.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `scripts/command-dispatcher.mjs`
+- `src/App.tsx`
 - `tests/api/story-1-2-create-and-pin-sessions-through-command-handlers.automation.spec.ts`
+- `tests/e2e/story-1-1-initial-project.automation.spec.ts`
+- `tests/e2e/story-1-2-create-and-pin-sessions-through-command-handlers.automation.spec.ts`
+- `tests/support/fixtures/factories/command-envelope-factory.ts`
 
 ## Change Log
 
 - 2026-02-18: Implemented `CreateSession` and `PinSession` command handlers with atomic state+event behavior and expanded Story 1.2 API automation tests for `caused_by` linkage and command-only mutation guarantees.
+- 2026-02-19: Remediated senior review findings by enforcing strict envelope/type/idempotency guards, converting Story 1.2 E2E success checks to real backend flows, and adding API invariants for unsupported types, malformed metadata, and duplicate command IDs.
+
+### Senior Developer Review (AI)
+
+- 2026-02-19: Resolved all five review findings covering mocked E2E success paths, unsupported command acceptance, weak envelope validation, duplicate command replay, and missing API invariants.
+- Outcome: Approved. Story moved to `done`.

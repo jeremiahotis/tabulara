@@ -241,6 +241,163 @@ test.describe('Story 1.2 API automation coverage', () => {
     );
   });
 
+  test('[P1][AC1] should reject unsupported command types without mutation or event append', async ({
+    apiRequest,
+  }) => {
+    const createSessionCommand = createCreateSessionCommandEnvelope();
+    const command = {
+      ...createSessionCommand,
+      type: 'UnknownCommand',
+    };
+
+    const { status, body } = await apiRequest<{
+      error: {
+        code: string;
+        category: string;
+        details: Array<{ field: string; reason: string }>;
+        allowed_types: string[];
+      };
+      mutation_applied: boolean;
+      event_appended: boolean;
+    }>({
+      method: 'POST',
+      path: '/api/v1/commands/dispatch',
+      body: command,
+    });
+
+    expect(status).toBe(400);
+    expect(body).toMatchObject({
+      error: {
+        code: 'CMD_TYPE_UNSUPPORTED',
+        category: 'validation',
+      },
+      mutation_applied: false,
+      event_appended: false,
+    });
+    expect(body.error.allowed_types).toEqual(expect.arrayContaining(['CreateSession', 'PinSession']));
+    expect(body.error.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'type',
+          reason: 'unsupported_command_type',
+        }),
+      ]),
+    );
+  });
+
+  test('[P1][AC1] should reject malformed envelope metadata even when required fields are present', async ({
+    apiRequest,
+  }) => {
+    const malformedEnvelope = {
+      command_id: '',
+      type: 'CreateSession',
+      actor: 'ops-user',
+      timestamp: 'not-a-timestamp',
+      payload: {
+        project_id: 'project-123',
+        schema_id: 'schema-123',
+      },
+    };
+
+    const { status, body } = await apiRequest<{
+      error: {
+        code: string;
+        category: string;
+        missing_fields: string[];
+        invalid_fields: string[];
+        details: Array<{ field: string; reason: string }>;
+      };
+      mutation_applied: boolean;
+      event_appended: boolean;
+    }>({
+      method: 'POST',
+      path: '/api/v1/commands/dispatch',
+      body: malformedEnvelope,
+    });
+
+    expect(status).toBe(400);
+    expect(body).toMatchObject({
+      error: {
+        code: 'CMD_ENVELOPE_VALIDATION_FAILED',
+        category: 'validation',
+        missing_fields: [],
+      },
+      mutation_applied: false,
+      event_appended: false,
+    });
+    expect(body.error.invalid_fields).toEqual(
+      expect.arrayContaining(['command_id', 'actor', 'timestamp']),
+    );
+    expect(body.error.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'command_id',
+          reason: 'invalid',
+        }),
+        expect.objectContaining({
+          field: 'actor',
+          reason: 'invalid',
+        }),
+        expect.objectContaining({
+          field: 'timestamp',
+          reason: 'invalid',
+        }),
+      ]),
+    );
+  });
+
+  test('[P1][AC1] should reject duplicate command_id values to enforce idempotency conflict handling', async ({
+    apiRequest,
+  }) => {
+    const command = createCreateSessionCommandEnvelope();
+
+    const firstResult = await apiRequest<{
+      accepted: boolean;
+      command_id: string;
+    }>({
+      method: 'POST',
+      path: '/api/v1/commands/dispatch',
+      body: command,
+    });
+    const secondResult = await apiRequest<{
+      error: {
+        code: string;
+        category: string;
+        details: Array<{ field: string; reason: string }>;
+      };
+      mutation_applied: boolean;
+      event_appended: boolean;
+    }>({
+      method: 'POST',
+      path: '/api/v1/commands/dispatch',
+      body: command,
+    });
+
+    expect(firstResult.status).toBe(202);
+    expect(firstResult.body).toMatchObject({
+      accepted: true,
+      command_id: command.command_id,
+    });
+
+    expect(secondResult.status).toBe(409);
+    expect(secondResult.body).toMatchObject({
+      error: {
+        code: 'IDEMPOTENCY_CONFLICT',
+        category: 'precondition',
+      },
+      mutation_applied: false,
+      event_appended: false,
+    });
+    expect(secondResult.body.error.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'command_id',
+          reason: 'duplicate_command_id',
+        }),
+      ]),
+    );
+  });
+
   test('[P1][AC1][AC2] should maintain caused_by linkage for CreateSession and PinSession audit events', async ({
     apiRequest,
   }) => {

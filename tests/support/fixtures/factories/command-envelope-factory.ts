@@ -14,15 +14,15 @@ export type CommandEnvelope = {
 export function createCommandEnvelope(overrides: Partial<CommandEnvelope> = {}): CommandEnvelope {
   return {
     command_id: faker.string.uuid(),
-    type: 'session.initialize',
+    type: 'CreateSession',
     actor: {
       id: `ops-${faker.string.alphanumeric(8)}`,
       role: 'ops-user',
     },
     timestamp: new Date().toISOString(),
     payload: {
-      document_path: '/tmp/demo.pdf',
-      correlation_id: faker.string.uuid(),
+      project_id: faker.string.uuid(),
+      schema_id: faker.string.uuid(),
     },
     ...overrides,
   };

@@ -3,9 +3,15 @@ import { randomUUID } from 'node:crypto';
 const REQUIRED_ENVELOPE_FIELDS = ['command_id', 'type', 'actor', 'timestamp', 'payload'];
 const REQUIRED_CREATE_SESSION_FIELDS = ['project_id', 'schema_id'];
 const REQUIRED_PIN_SESSION_FIELDS = ['session_id', 'pinned'];
+const SUPPORTED_COMMAND_TYPES = new Set(['CreateSession', 'PinSession']);
+const SUPPORTED_ACTOR_ROLES = new Set(['ops-user', 'service']);
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
 
 function validateCommandEnvelope(body) {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+  if (!isRecord(body)) {
     return {
       ok: false,
       error: {
@@ -18,10 +24,48 @@ function validateCommandEnvelope(body) {
   }
 
   const missingFields = REQUIRED_ENVELOPE_FIELDS.filter((field) => body[field] === undefined);
+  const invalidDetails = [];
 
-  if (missingFields.length === 0) {
+  if (body.command_id !== undefined && (typeof body.command_id !== 'string' || body.command_id.trim().length === 0)) {
+    invalidDetails.push({ field: 'command_id', reason: 'invalid' });
+  }
+
+  if (body.type !== undefined && (typeof body.type !== 'string' || body.type.trim().length === 0)) {
+    invalidDetails.push({ field: 'type', reason: 'invalid' });
+  }
+
+  if (body.actor !== undefined) {
+    if (!isRecord(body.actor)) {
+      invalidDetails.push({ field: 'actor', reason: 'invalid' });
+    } else if (
+      typeof body.actor.id !== 'string' ||
+      body.actor.id.trim().length === 0 ||
+      typeof body.actor.role !== 'string' ||
+      !SUPPORTED_ACTOR_ROLES.has(body.actor.role)
+    ) {
+      invalidDetails.push({ field: 'actor', reason: 'invalid' });
+    }
+  }
+
+  if (
+    body.timestamp !== undefined &&
+    (typeof body.timestamp !== 'string' || Number.isNaN(Date.parse(body.timestamp)))
+  ) {
+    invalidDetails.push({ field: 'timestamp', reason: 'invalid' });
+  }
+
+  if (body.payload !== undefined && !isRecord(body.payload)) {
+    invalidDetails.push({ field: 'payload', reason: 'invalid' });
+  }
+
+  if (missingFields.length === 0 && invalidDetails.length === 0) {
     return { ok: true };
   }
+
+  const details = [
+    ...missingFields.map((field) => ({ field, reason: 'required' })),
+    ...invalidDetails,
+  ];
 
   return {
     ok: false,
@@ -29,7 +73,8 @@ function validateCommandEnvelope(body) {
       code: 'CMD_ENVELOPE_VALIDATION_FAILED',
       category: 'validation',
       missing_fields: missingFields,
-      details: missingFields.map((field) => ({ field, reason: 'required' })),
+      invalid_fields: invalidDetails.map(({ field }) => field),
+      details,
     },
   };
 }
@@ -125,6 +170,7 @@ export function createCommandDispatcher() {
   const store = {
     sessions: new Map(),
     auditLog: [],
+    commandLog: new Set(),
   };
 
   return {
@@ -135,6 +181,47 @@ export function createCommandDispatcher() {
           statusCode: 400,
           body: {
             error: validation.error,
+            mutation_applied: false,
+            event_appended: false,
+          },
+        };
+      }
+
+      if (!SUPPORTED_COMMAND_TYPES.has(commandEnvelope.type)) {
+        return {
+          statusCode: 400,
+          body: {
+            error: {
+              code: 'CMD_TYPE_UNSUPPORTED',
+              category: 'validation',
+              details: [
+                {
+                  field: 'type',
+                  reason: 'unsupported_command_type',
+                },
+              ],
+              allowed_types: [...SUPPORTED_COMMAND_TYPES],
+            },
+            mutation_applied: false,
+            event_appended: false,
+          },
+        };
+      }
+
+      if (store.commandLog.has(commandEnvelope.command_id)) {
+        return {
+          statusCode: 409,
+          body: {
+            error: {
+              code: 'IDEMPOTENCY_CONFLICT',
+              category: 'precondition',
+              details: [
+                {
+                  field: 'command_id',
+                  reason: 'duplicate_command_id',
+                },
+              ],
+            },
             mutation_applied: false,
             event_appended: false,
           },
@@ -185,6 +272,8 @@ export function createCommandDispatcher() {
             event,
           };
         });
+
+        store.commandLog.add(commandEnvelope.command_id);
 
         return {
           statusCode: 202,
@@ -260,6 +349,8 @@ export function createCommandDispatcher() {
           };
         });
 
+        store.commandLog.add(commandEnvelope.command_id);
+
         return {
           statusCode: 202,
           body: {
@@ -276,12 +367,20 @@ export function createCommandDispatcher() {
       }
 
       return {
-        statusCode: 202,
+        statusCode: 500,
         body: {
-          accepted: true,
-          command_id: commandEnvelope.command_id,
-          mutation_applied: true,
-          event_appended: true,
+          error: {
+            code: 'INVARIANT_VIOLATION',
+            category: 'invariant',
+            details: [
+              {
+                field: 'type',
+                reason: 'unreachable_command_branch',
+              },
+            ],
+          },
+          mutation_applied: false,
+          event_appended: false,
         },
       };
     },
