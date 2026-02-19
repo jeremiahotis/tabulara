@@ -5,7 +5,7 @@ import {
 } from '../support/fixtures/factories/document-import-command-factory';
 
 test.describe('Story 1.3 import + duplicate command handlers (ATDD RED)', () => {
-  test.skip(
+  test(
     '[P0][AC1] should persist import metadata and blob references through ImportDocument command handlers',
     async ({ request }) => {
       const command = createImportDocumentCommandEnvelope();
@@ -38,7 +38,7 @@ test.describe('Story 1.3 import + duplicate command handlers (ATDD RED)', () => 
     },
   );
 
-  test.skip(
+  test(
     '[P0][AC1] should append DocumentImported with deterministic caused_by linkage',
     async ({ request }) => {
       const command = createImportDocumentCommandEnvelope();
@@ -67,7 +67,7 @@ test.describe('Story 1.3 import + duplicate command handlers (ATDD RED)', () => 
     },
   );
 
-  test.skip(
+  test(
     '[P0][AC2] should persist duplicate linkage to original import context through ConfirmDuplicate command handlers',
     async ({ request }) => {
       const command = createConfirmDuplicateCommandEnvelope();
@@ -92,7 +92,7 @@ test.describe('Story 1.3 import + duplicate command handlers (ATDD RED)', () => 
     },
   );
 
-  test.skip(
+  test(
     '[P1][AC2] should append DuplicateMarked with deterministic correlation fields',
     async ({ request }) => {
       const command = createConfirmDuplicateCommandEnvelope();

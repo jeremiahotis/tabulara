@@ -18,6 +18,11 @@ type DispatchErrorResponse = {
   event_appended?: boolean;
 };
 
+type DispatchEvent = {
+  type?: string;
+  caused_by?: string;
+};
+
 type DispatchAcceptedResponse = {
   accepted: boolean;
   mutation_applied?: boolean;
@@ -25,6 +30,19 @@ type DispatchAcceptedResponse = {
   session?: {
     id?: string;
   };
+  documents?: Array<{
+    blob_id?: string;
+  }>;
+  duplicate?: {
+    state?: string;
+    duplicate_of_document_id?: string;
+    linked_import_command_id?: string;
+    correlation?: {
+      deterministic_key?: string;
+    };
+  };
+  events?: DispatchEvent[];
+  audit_log?: DispatchEvent[];
 };
 
 type CommandEnvelope = {
@@ -38,6 +56,32 @@ type CommandEnvelope = {
   payload: Record<string, unknown>;
 };
 
+function inferMimeType(fileName: string): string {
+  const normalized = fileName.trim().toLowerCase();
+  if (normalized.endsWith('.pdf')) {
+    return 'application/pdf';
+  }
+  if (normalized.endsWith('.png')) {
+    return 'image/png';
+  }
+  if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  }
+  if (normalized.endsWith('.tif') || normalized.endsWith('.tiff')) {
+    return 'image/tiff';
+  }
+  return 'application/octet-stream';
+}
+
+function normalizeBlobIds(blobIdsInput: string): string[] {
+  const parsed = blobIdsInput
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return parsed.length > 0 ? parsed : ['blob-default'];
+}
+
 export function App() {
   const [backendHealth, setBackendHealth] = useState('pending');
   const [apiBadge, setApiBadge] = useState('/api/v1');
@@ -47,6 +91,21 @@ export function App() {
   const [missingFields, setMissingFields] = useState('');
   const [mutationState, setMutationState] = useState('none');
   const [eventAppendState, setEventAppendState] = useState('none');
+  const [importSessionId, setImportSessionId] = useState('');
+  const [importBlobIds, setImportBlobIds] = useState('');
+  const [importMetadataSource, setImportMetadataSource] = useState('import');
+  const [importFileName, setImportFileName] = useState('');
+  const [duplicateSessionId, setDuplicateSessionId] = useState('');
+  const [duplicateDocumentId, setDuplicateDocumentId] = useState('');
+  const [duplicateOfDocumentId, setDuplicateOfDocumentId] = useState('');
+  const [duplicateSourceCommandId, setDuplicateSourceCommandId] = useState('');
+  const [documentLastImportedBlobId, setDocumentLastImportedBlobId] = useState('');
+  const [duplicateStateLatest, setDuplicateStateLatest] = useState('');
+  const [duplicateOfDocumentIdLatest, setDuplicateOfDocumentIdLatest] = useState('');
+  const [duplicateCorrelationKeyLatest, setDuplicateCorrelationKeyLatest] = useState('');
+  const [duplicateLinkedImportCommandLatest, setDuplicateLinkedImportCommandLatest] = useState('');
+  const [auditEventTypeLatest, setAuditEventTypeLatest] = useState('');
+  const [auditEventCausedByLatest, setAuditEventCausedByLatest] = useState('');
 
   const loadHealth = useCallback(async () => {
     const response = await fetch('/api/v1/health');
@@ -109,6 +168,31 @@ export function App() {
       const returnedSessionId = acceptedBody.session?.id;
       if (typeof returnedSessionId === 'string' && returnedSessionId.trim().length > 0) {
         setLastSessionId(returnedSessionId);
+      }
+
+      const latestEvent =
+        acceptedBody.events?.[acceptedBody.events.length - 1] ??
+        acceptedBody.audit_log?.[acceptedBody.audit_log.length - 1];
+
+      if (latestEvent) {
+        setAuditEventTypeLatest(latestEvent.type ?? '');
+        setAuditEventCausedByLatest(latestEvent.caused_by ?? '');
+      }
+
+      const latestImportedDocument = acceptedBody.documents?.[0];
+      if (latestImportedDocument?.blob_id) {
+        setDocumentLastImportedBlobId(latestImportedDocument.blob_id);
+      }
+
+      if (acceptedBody.duplicate) {
+        setDuplicateStateLatest(acceptedBody.duplicate.state ?? '');
+        setDuplicateOfDocumentIdLatest(acceptedBody.duplicate.duplicate_of_document_id ?? '');
+        setDuplicateCorrelationKeyLatest(
+          acceptedBody.duplicate.correlation?.deterministic_key ?? '',
+        );
+        setDuplicateLinkedImportCommandLatest(
+          acceptedBody.duplicate.linked_import_command_id ?? '',
+        );
       }
 
       return true;
@@ -174,10 +258,64 @@ export function App() {
       return;
     }
 
+    if (normalizedType === 'ImportDocument') {
+      const resolvedSessionId = importSessionId.trim() || lastSessionId || `session-${crypto.randomUUID()}`;
+      const resolvedFileName = importFileName.trim() || 'document.pdf';
+      const resolvedBlobIds = normalizeBlobIds(importBlobIds);
+      const importEnvelope = buildCommandEnvelope('ImportDocument', {
+        session_id: resolvedSessionId,
+        blob_ids: resolvedBlobIds,
+        metadata: {
+          source: importMetadataSource.trim() || 'import',
+          file_name: resolvedFileName,
+          mime_type: inferMimeType(resolvedFileName),
+          file_hash: '0'.repeat(64),
+        },
+      });
+      const importResult = await dispatchCommand(importEnvelope);
+      applyDispatchResult(importResult.response, importResult.body);
+      return;
+    }
+
+    if (normalizedType === 'ConfirmDuplicate') {
+      const resolvedSessionId = duplicateSessionId.trim() || lastSessionId || `session-${crypto.randomUUID()}`;
+      const resolvedDocumentId = duplicateDocumentId.trim() || 'doc-duplicate';
+      const resolvedDuplicateOfId = duplicateOfDocumentId.trim() || 'doc-original';
+      const resolvedSourceCommandId = duplicateSourceCommandId.trim() || crypto.randomUUID();
+      const duplicateEnvelope = buildCommandEnvelope('ConfirmDuplicate', {
+        session_id: resolvedSessionId,
+        document_id: resolvedDocumentId,
+        duplicate_of_document_id: resolvedDuplicateOfId,
+        correlation: {
+          pair_key: [resolvedDocumentId, resolvedDuplicateOfId].sort().join('::'),
+          deterministic_key: `${resolvedSessionId}:${resolvedDocumentId}:${resolvedDuplicateOfId}`,
+          source_import_command_id: resolvedSourceCommandId,
+          detector: 'hash',
+        },
+      });
+      const duplicateResult = await dispatchCommand(duplicateEnvelope);
+      applyDispatchResult(duplicateResult.response, duplicateResult.body);
+      return;
+    }
+
     const unsupportedEnvelope = buildCommandEnvelope(normalizedType, {});
     const unsupportedResult = await dispatchCommand(unsupportedEnvelope);
     applyDispatchResult(unsupportedResult.response, unsupportedResult.body);
-  }, [applyDispatchResult, buildCommandEnvelope, commandType, dispatchCommand, lastSessionId]);
+  }, [
+    applyDispatchResult,
+    buildCommandEnvelope,
+    commandType,
+    dispatchCommand,
+    duplicateDocumentId,
+    duplicateOfDocumentId,
+    duplicateSessionId,
+    duplicateSourceCommandId,
+    importBlobIds,
+    importFileName,
+    importMetadataSource,
+    importSessionId,
+    lastSessionId,
+  ]);
 
   return (
     <main className="shell">
@@ -209,6 +347,80 @@ export function App() {
         Submit Command
       </button>
 
+      <hr />
+
+      <label htmlFor="importSessionId">Import session ID</label>
+      <input
+        id="importSessionId"
+        data-testid="import-session-id-input"
+        placeholder="session-import-001"
+        value={importSessionId}
+        onChange={(event) => setImportSessionId(event.target.value)}
+      />
+
+      <label htmlFor="importBlobIds">Import blob IDs (comma-separated)</label>
+      <input
+        id="importBlobIds"
+        data-testid="import-blob-ids-input"
+        placeholder="blob-import-001,blob-import-002"
+        value={importBlobIds}
+        onChange={(event) => setImportBlobIds(event.target.value)}
+      />
+
+      <label htmlFor="importMetadataSource">Import metadata source</label>
+      <input
+        id="importMetadataSource"
+        data-testid="import-metadata-source-input"
+        placeholder="import"
+        value={importMetadataSource}
+        onChange={(event) => setImportMetadataSource(event.target.value)}
+      />
+
+      <label htmlFor="importFileName">Import file name</label>
+      <input
+        id="importFileName"
+        data-testid="import-file-name-input"
+        placeholder="invoice-001.pdf"
+        value={importFileName}
+        onChange={(event) => setImportFileName(event.target.value)}
+      />
+
+      <label htmlFor="duplicateSessionId">Duplicate session ID</label>
+      <input
+        id="duplicateSessionId"
+        data-testid="duplicate-session-id-input"
+        placeholder="session-import-001"
+        value={duplicateSessionId}
+        onChange={(event) => setDuplicateSessionId(event.target.value)}
+      />
+
+      <label htmlFor="duplicateDocumentId">Duplicate document ID</label>
+      <input
+        id="duplicateDocumentId"
+        data-testid="duplicate-document-id-input"
+        placeholder="doc-duplicate-001"
+        value={duplicateDocumentId}
+        onChange={(event) => setDuplicateDocumentId(event.target.value)}
+      />
+
+      <label htmlFor="duplicateOfDocumentId">Duplicate-of document ID</label>
+      <input
+        id="duplicateOfDocumentId"
+        data-testid="duplicate-of-document-id-input"
+        placeholder="doc-original-001"
+        value={duplicateOfDocumentId}
+        onChange={(event) => setDuplicateOfDocumentId(event.target.value)}
+      />
+
+      <label htmlFor="duplicateSourceCommandId">Duplicate source import command ID</label>
+      <input
+        id="duplicateSourceCommandId"
+        data-testid="duplicate-source-command-id-input"
+        placeholder="cmd-import-001"
+        value={duplicateSourceCommandId}
+        onChange={(event) => setDuplicateSourceCommandId(event.target.value)}
+      />
+
       <p className="row">
         Error code: <span data-testid="command-error-code">{errorCode}</span>
       </p>
@@ -220,6 +432,29 @@ export function App() {
       </p>
       <p className="row">
         Event append: <span data-testid="event-append-state">{eventAppendState}</span>
+      </p>
+      <p className="row">
+        Last imported blob: <span data-testid="document-last-imported-blob-id">{documentLastImportedBlobId}</span>
+      </p>
+      <p className="row">
+        Duplicate state: <span data-testid="duplicate-state-latest">{duplicateStateLatest}</span>
+      </p>
+      <p className="row">
+        Duplicate-of document: <span data-testid="duplicate-of-document-id-latest">{duplicateOfDocumentIdLatest}</span>
+      </p>
+      <p className="row">
+        Duplicate correlation key: <span data-testid="duplicate-correlation-key-latest">{duplicateCorrelationKeyLatest}</span>
+      </p>
+      <p className="row">
+        Duplicate linked import command:{' '}
+        <span data-testid="duplicate-linked-import-command-latest">{duplicateLinkedImportCommandLatest}</span>
+      </p>
+      <p className="row">
+        Latest audit event: <span data-testid="audit-event-type-latest">{auditEventTypeLatest}</span>
+      </p>
+      <p className="row">
+        Latest audit caused_by:{' '}
+        <span data-testid="audit-event-caused-by-latest">{auditEventCausedByLatest}</span>
       </p>
     </main>
   );

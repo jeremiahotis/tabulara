@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Story 1.3 document import + duplicate handling workflow (ATDD RED)', () => {
-  test.skip(
+  test(
     '[P0][AC1] should import document command payload and surface DocumentImported traceability',
     async ({ page }) => {
       const importResponse = page.waitForResponse(
@@ -29,7 +29,7 @@ test.describe('Story 1.3 document import + duplicate handling workflow (ATDD RED
     },
   );
 
-  test.skip(
+  test(
     '[P0][AC2] should confirm duplicate candidate and persist duplicate linkage state',
     async ({ page }) => {
       const importResponse = page.waitForResponse(
@@ -70,7 +70,7 @@ test.describe('Story 1.3 document import + duplicate handling workflow (ATDD RED
     },
   );
 
-  test.skip(
+  test(
     '[P1][AC2] should surface deterministic duplicate correlation evidence for operators',
     async ({ page }) => {
       const duplicateResponse = page.waitForResponse(
