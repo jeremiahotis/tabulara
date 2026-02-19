@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "subprocess": "e2e-tests",
+  "tests": [
+    {
+      "file": "tests/e2e/story-1-5-run-extraction-and-persist-derived-data-updates.automation.spec.ts",
+      "content": "import { test, expect } from '../support/fixtures';\nimport { story15ExpectedErrorCodes, story15RedPhaseData } from '../support/fixtures/story-1-5-red-phase-data';\n\ntest.describe('Story 1.5 E2E automation coverage', () => {\n  test(\n    '[P1][AC1] should show deterministic unsupported-command feedback when RunExtraction is dispatched from the shell',\n    { annotation: [{ type: 'skipNetworkMonitoring' }] },\n    async ({ page }) => {\n      const dispatchResponse = page.waitForResponse(\n        (response) =>\n          response.url().includes('/api/v1/commands/dispatch') &&\n          response.request().method() === 'POST' &&\n          response.status() === 400,\n      );\n\n      await page.goto('/');\n      await page.getByTestId('command-type-input').fill(story15RedPhaseData.runExtraction.commandType);\n      await page.getByTestId('command-submit-button').click();\n\n      const response = await dispatchResponse;\n      expect(response.status()).toBe(400);\n\n      await expect(page.getByTestId('command-error-code')).toHaveText(story15ExpectedErrorCodes.unsupportedType);\n      await expect(page.getByTestId('command-error-detail-latest')).toHaveText(\n        story15ExpectedErrorCodes.unsupportedReason,\n      );\n      await expect(page.getByTestId('mutation-state')).toHaveText('none');\n      await expect(page.getByTestId('event-append-state')).toHaveText('none');\n    },\n  );\n\n  test(\n    '[P1][AC2] should keep unsupported-command UI payloads deterministic across repeated RunExtraction submissions',\n    { annotation: [{ type: 'skipNetworkMonitoring' }] },\n    async ({ page }) => {\n      await page.goto('/');\n\n      const firstDispatchResponse = page.waitForResponse(\n        (response) =>\n          response.url().includes('/api/v1/commands/dispatch') &&\n          response.request().method() === 'POST' &&\n          response.status() === 400,\n      );\n\n      await page.getByTestId('command-type-input').fill('RunExtraction');\n      await page.getByTestId('command-submit-button').click();\n      await firstDispatchResponse;\n\n      await expect(page.getByTestId('command-error-code')).toHaveText('CMD_TYPE_UNSUPPORTED');\n      await expect(page.getByTestId('command-error-detail-latest')).toHaveText('unsupported_command_type');\n      await expect(page.getByTestId('mutation-state')).toHaveText('none');\n      await expect(page.getByTestId('event-append-state')).toHaveText('none');\n\n      const secondDispatchResponse = page.waitForResponse(\n        (response) =>\n          response.url().includes('/api/v1/commands/dispatch') &&\n          response.request().method() === 'POST' &&\n          response.status() === 400,\n      );\n\n      await page.getByTestId('command-submit-button').click();\n      await secondDispatchResponse;\n\n      await expect(page.getByTestId('command-error-code')).toHaveText('CMD_TYPE_UNSUPPORTED');\n      await expect(page.getByTestId('command-error-detail-latest')).toHaveText('unsupported_command_type');\n      await expect(page.getByTestId('mutation-state')).toHaveText('none');\n      await expect(page.getByTestId('event-append-state')).toHaveText('none');\n    },\n  );\n});\n",
+      "description": "Story 1.5 E2E automation for deterministic unsupported RunExtraction feedback in operator shell",
+      "priority_coverage": {
+        "P0": 0,
+        "P1": 2,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": ["commandDispatchValidationUi"],
+  "knowledge_fragments_used": ["network-first", "selector-resilience", "test-quality", "playwright-cli"],
+  "test_count": 2,
+  "summary": "Generated 2 E2E automation tests for Story 1.5 unsupported-command UX determinism"
+}

@@ -6,7 +6,7 @@ stepsCompleted:
   - step-03c-aggregate
   - step-04-validate-and-summarize
 lastStep: step-04-validate-and-summarize
-lastSaved: 2026-02-19T10-38-06Z
+lastSaved: 2026-02-19T14-44-40Z
 ---
 
 # Automation Summary - Story 1.1
@@ -487,3 +487,114 @@ Key assumptions and risks:
 Recommended next workflow:
 - `RV` (Review Tests) for structured quality review against TEA standards.
 - Optional: `TR` (Trace Requirements) to align Story 1.4 ACs across ATDD + automation and record gate status.
+
+## Story 1.5 - Step 1: Preflight and Context
+
+- Mode selected: **BMad-Integrated** (input: `_bmad-output/implementation-artifacts/1-5-run-extraction-and-persist-derived-data-updates.md`).
+- Framework readiness verified:
+  - `playwright.config.ts` present and configured for API/E2E projects.
+  - `package.json` includes `@playwright/test` and `@seontechnologies/playwright-utils`.
+  - `tests/` structure includes `api`, `e2e`, and shared support fixtures/helpers.
+- Story and ATDD baseline loaded:
+  - Story: `_bmad-output/implementation-artifacts/1-5-run-extraction-and-persist-derived-data-updates.md`
+  - ATDD checklist: `_bmad-output/test-artifacts/atdd-checklist-1-5-run-extraction-and-persist-derived-data-updates.md`
+  - Existing ATDD RED specs:
+    - `tests/api/story-1-5-run-extraction-and-persist-derived-data-updates.spec.ts`
+    - `tests/e2e/story-1-5-run-extraction-and-persist-derived-data-updates.spec.ts`
+- TEA config flags read:
+  - `tea_use_playwright_utils: true`
+  - `tea_browser_automation: auto`
+- Knowledge fragments loaded for this run:
+  - Core: `test-levels-framework`, `test-priorities-matrix`, `data-factories`, `selective-testing`, `ci-burn-in`, `test-quality`
+  - Playwright Utils: `overview`, `api-request`, `network-recorder`, `auth-session`, `intercept-network-call`, `recurse`, `log`, `file-utils`, `burn-in`, `network-error-monitor`, `fixtures-composition`
+  - Browser automation: `playwright-cli`
+  - E2E selector/network guardrails: `selector-resilience`, `network-first`
+- Browser automation tool availability:
+  - `playwright-cli`: **not installed** in this environment (`command not found`)
+
+## Story 1.5 - Step 2: Targets and Coverage Plan
+
+- Existing Story 1.5 ATDD outputs detected and treated as RED baseline to avoid duplicate future-state assertions:
+  - `tests/api/story-1-5-run-extraction-and-persist-derived-data-updates.spec.ts`
+  - `tests/e2e/story-1-5-run-extraction-and-persist-derived-data-updates.spec.ts`
+- Current implementation analysis:
+  - Dispatcher currently supports `CreateSession`, `PinSession`, `ImportDocument`, `ConfirmDuplicate`, `ApplyPreprocessing`, and `ReprocessDocument`.
+  - `RunExtraction` is currently unsupported by API dispatcher (`CMD_TYPE_UNSUPPORTED`).
+- Coverage strategy (`critical-paths`):
+  - Preserve Story 1.5 ATDD RED specs as the future-state acceptance target.
+  - Add executable automation for deterministic current-state guardrails and stable command-envelope generation.
+- Test level selection:
+  - **API (primary):** deterministic unsupported-command contract assertions plus extraction envelope factory determinism.
+  - **E2E (secondary):** operator-visible deterministic unsupported-command feedback in shell dispatcher.
+- Priority assignment:
+  - P0: deterministic unsupported-command API contract and side-effect suppression.
+  - P1: deterministic envelope default/override behavior and repeatable operator-facing unsupported feedback.
+
+## Story 1.5 - Step 3: Parallel Subprocess Generation
+
+- Timestamp: `2026-02-19T14-44-40Z`
+- Subprocess A (API): `/tmp/tea-automate-api-tests-2026-02-19T14-44-40Z.json` ✅
+- Subprocess B (E2E): `/tmp/tea-automate-e2e-tests-2026-02-19T14-44-40Z.json` ✅
+- Execution model: **PARALLEL (non-sequential)**.
+- Validation:
+  - Both output files exist.
+  - Both JSON payloads parse and report `success: true`.
+
+## Story 1.5 - Step 3C: Aggregation and File Generation
+
+Generated files:
+- `tests/support/fixtures/factories/extraction-command-factory.ts`
+- `tests/support/fixtures/story-1-5-red-phase-data.ts`
+- `tests/api/story-1-5-run-extraction-and-persist-derived-data-updates.automation.spec.ts`
+- `tests/e2e/story-1-5-run-extraction-and-persist-derived-data-updates.automation.spec.ts`
+
+Temporary artifacts persisted:
+- `_bmad-output/test-artifacts/temp/tea-automate-api-tests-2026-02-19T14-44-40Z.json`
+- `_bmad-output/test-artifacts/temp/tea-automate-e2e-tests-2026-02-19T14-44-40Z.json`
+- `_bmad-output/test-artifacts/temp/tea-automate-summary-2026-02-19T14-44-40Z.json`
+
+Aggregate summary (`/tmp/tea-automate-summary-2026-02-19T14-44-40Z.json`):
+- Total tests: `6`
+  - API: `4` (1 file)
+  - E2E: `2` (1 file)
+- Priority coverage:
+  - P0: `2`
+  - P1: `4`
+  - P2: `0`
+  - P3: `0`
+- Fixture needs resolved:
+  - `extractionCommandFactory`
+  - `story15RedPhaseData`
+  - `commandDispatchValidationUi`
+
+## Story 1.5 - Step 4: Validation and Final Summary
+
+Checklist validation highlights:
+- Framework readiness: **PASS**
+- Coverage mapping (AC -> targets -> priorities): **PASS**
+- Test quality:
+  - Priority tags present (`[P0]`, `[P1]`): **PASS**
+  - Deterministic waits/no hard sleeps: **PASS**
+  - Unsupported-command contract assertions deterministic across API and E2E: **PASS**
+- Fixtures/helpers:
+  - New Story 1.5 extraction command factory and red-phase data fixture added: **PASS**
+- CLI session hygiene: **PASS** (CLI unavailable; no sessions opened)
+- Temp artifact location policy: **PASS** (artifacts persisted under `_bmad-output/test-artifacts/temp`)
+
+Execution results:
+- `npx playwright test tests/api/story-1-5-run-extraction-and-persist-derived-data-updates.automation.spec.ts --project=api` -> **4 passed**
+- `npx playwright test tests/e2e/story-1-5-run-extraction-and-persist-derived-data-updates.automation.spec.ts --project=chromium-e2e` -> **2 passed**
+
+Coverage summary (Story 1.5 automation run):
+- API: 4 tests (P0: 2, P1: 2)
+- E2E: 2 tests (P0: 0, P1: 2)
+- Total: 6 tests (P0: 2, P1: 4)
+
+Key assumptions and risks:
+- Assumption: Story 1.5 full extraction persistence/event linkage behavior remains tracked by ATDD RED specs and will be promoted once `RunExtraction` handler implementation lands.
+- Risk: Runtime currently does not support `RunExtraction`; generated automation therefore emphasizes deterministic unsupported-command guardrails and envelope stability.
+- Risk mitigation: keep Story 1.5 ATDD RED specs intact as future-state acceptance gates and use automation suite as current-state regression signal.
+
+Recommended next workflow:
+- `RV` (Review Tests) for structured quality review against TEA standards.
+- Optional: `TR` (Trace Requirements) to map Story 1.5 ACs across ATDD + automation and record gate status.
