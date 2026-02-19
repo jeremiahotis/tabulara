@@ -6,7 +6,7 @@ stepsCompleted:
   - step-03c-aggregate
   - step-04-validate-and-summarize
 lastStep: step-04-validate-and-summarize
-lastSaved: 2026-02-19T09:38:11Z
+lastSaved: 2026-02-19T10-38-06Z
 ---
 
 # Automation Summary - Story 1.1
@@ -354,3 +354,136 @@ Key assumptions and risks:
 Recommended next workflow:
 - `RV` (Review Tests) for structured quality review against TEA standards.
 - Optional: `TR` (Trace Requirements) to align Story 1.3 ACs across ATDD + automation and record gate status.
+
+## Story 1.4 - Step 1: Preflight and Context
+
+- Mode selected: **BMad-Integrated** (input: `_bmad-output/implementation-artifacts/1-4-apply-preprocessing-and-controlled-reprocessing.md`).
+- Framework readiness verified:
+  - `playwright.config.ts` present and configured for API/E2E projects.
+  - `package.json` includes `@playwright/test` and `@seontechnologies/playwright-utils`.
+  - `tests/` structure includes `api`, `e2e`, and shared support fixtures/helpers.
+- Story and supporting artifacts loaded:
+  - Story: `_bmad-output/implementation-artifacts/1-4-apply-preprocessing-and-controlled-reprocessing.md`
+  - Architecture: `_bmad-output/planning-artifacts/architecture.md`
+  - Epic context: `_bmad-output/planning-artifacts/epics.md`
+  - Test design: `_bmad-output/test-artifacts/test-design-epic-1.md`
+- Existing Story 1.4 ATDD RED baseline loaded:
+  - `tests/api/story-1-4-apply-preprocessing-and-controlled-reprocessing.spec.ts`
+  - `tests/e2e/story-1-4-apply-preprocessing-and-controlled-reprocessing.spec.ts`
+- TEA config flags read:
+  - `tea_use_playwright_utils: true`
+  - `tea_browser_automation: auto`
+- Knowledge fragments loaded for this run:
+  - Core: `test-levels-framework`, `test-priorities-matrix`, `data-factories`, `selective-testing`, `ci-burn-in`, `test-quality`
+  - Playwright Utils: `overview`, `api-request`, `network-recorder`, `auth-session`, `intercept-network-call`, `recurse`, `log`, `file-utils`, `burn-in`, `network-error-monitor`, `fixtures-composition`
+  - Browser automation: `playwright-cli`
+- Browser automation tool availability:
+  - `playwright-cli`: **not installed** in this environment (`command not found`)
+
+## Story 1.4 - Step 2: Targets and Coverage Plan
+
+- Existing ATDD outputs detected and used as baseline (to avoid duplicate coverage):
+  - `tests/api/story-1-4-apply-preprocessing-and-controlled-reprocessing.spec.ts`
+  - `tests/e2e/story-1-4-apply-preprocessing-and-controlled-reprocessing.spec.ts`
+- Browser exploration decision:
+  - `tea_browser_automation` is `auto`, but `playwright-cli` is unavailable.
+  - Fallback path applied: rely on source/doc analysis.
+
+### Target Determination
+
+- Story acceptance criteria mapped:
+  - AC1: preprocessing command creates linked artifacts and appends `PreprocessingApplied` atomically.
+  - AC2: reprocess transition guard behavior and `DocumentReprocessed` append while preserving history.
+- Current implementation reality:
+  - Dispatcher currently supports `CreateSession`, `PinSession`, `ImportDocument`, and `ConfirmDuplicate`.
+  - Story 1.4 command types are not implemented in runtime handler path yet.
+- Coverage strategy:
+  - Preserve ATDD RED future-state assertions as-is.
+  - Add executable automation coverage for deterministic current behavior (unsupported command rejection) plus story-specific envelope shape assertions through dedicated command factories.
+
+### Test Levels Selected
+
+- **API (primary):** deterministic dispatch contract and Story 1.4 command envelope generation.
+- **E2E (secondary):** operator-visible deterministic error signaling for Story 1.4 command dispatch attempts.
+
+### Priority Assignment
+
+- **P0**
+  - ApplyPreprocessing deterministic unsupported-command rejection with no mutation/event side effects.
+  - ReprocessDocument deterministic unsupported-command rejection with no mutation/event side effects.
+- **P1**
+  - ApplyPreprocessing envelope default shape determinism.
+  - ReprocessDocument envelope default shape determinism.
+  - UI deterministic error-state feedback for both Story 1.4 command dispatch attempts.
+
+### Coverage Scope Justification (`critical-paths`)
+
+- `critical-paths` retained because Story 1.4 backend command handlers are not yet implemented.
+- Automation focuses on deterministic guardrails now while retaining ATDD RED contracts for future GREEN implementation.
+
+## Story 1.4 - Step 3: Parallel Subprocess Generation
+
+- Timestamp: `2026-02-19T10-38-06Z`
+- Subprocess A (API): `/tmp/tea-automate-api-tests-2026-02-19T10-38-06Z.json` ✅
+- Subprocess B (E2E): `/tmp/tea-automate-e2e-tests-2026-02-19T10-38-06Z.json` ✅
+- Execution model: **PARALLEL (non-sequential)**.
+- Validation:
+  - Both output files exist.
+  - Both JSON payloads parse and report `success: true`.
+
+## Story 1.4 - Step 3C: Aggregation and File Generation
+
+Generated files:
+- `tests/support/fixtures/factories/preprocessing-command-factory.ts`
+- `tests/api/story-1-4-apply-preprocessing-and-controlled-reprocessing.automation.spec.ts`
+- `tests/e2e/story-1-4-apply-preprocessing-and-controlled-reprocessing.automation.spec.ts`
+
+Temporary artifacts persisted:
+- `_bmad-output/test-artifacts/temp/tea-automate-api-tests-2026-02-19T10-38-06Z.json`
+- `_bmad-output/test-artifacts/temp/tea-automate-e2e-tests-2026-02-19T10-38-06Z.json`
+- `_bmad-output/test-artifacts/temp/tea-automate-summary-2026-02-19T10-38-06Z.json`
+
+Aggregate summary (`/tmp/tea-automate-summary-2026-02-19T10-38-06Z.json`):
+- Total tests: `6`
+  - API: `4` (1 file)
+  - E2E: `2` (1 file)
+- Priority coverage:
+  - P0: `2`
+  - P1: `4`
+  - P2: `0`
+  - P3: `0`
+- Fixture needs resolved:
+  - `preprocessingCommandFactory`
+  - `commandDispatchValidationUi`
+
+## Story 1.4 - Step 4: Validation and Final Summary
+
+Checklist validation highlights:
+- Framework readiness: **PASS**
+- Coverage mapping (AC -> targets -> priorities): **PASS**
+- Test quality:
+  - Priority tags present (`[P0]`, `[P1]`): **PASS**
+  - Deterministic waits/no hard sleeps: **PASS**
+  - Story-specific command envelope assertions included: **PASS**
+- Fixtures/helpers:
+  - New Story 1.4 command factory added and consumed by API automation tests: **PASS**
+- CLI session hygiene: **PASS** (CLI unavailable; no sessions opened)
+- Temp artifact location policy: **PASS** (artifacts persisted under `_bmad-output/test-artifacts/temp`)
+
+Execution results:
+- `npx playwright test tests/api/story-1-4-apply-preprocessing-and-controlled-reprocessing.automation.spec.ts --project=api` -> **4 passed**
+- `npx playwright test tests/e2e/story-1-4-apply-preprocessing-and-controlled-reprocessing.automation.spec.ts --project=chromium-e2e` -> **2 passed**
+
+Coverage summary (Story 1.4 automation run):
+- API: 4 tests (P0: 2, P1: 2)
+- E2E: 2 tests (P0: 0, P1: 2)
+- Total: 6 tests (P0: 2, P1: 4)
+
+Key assumptions and risks:
+- Assumption: Story 1.4 authoritative acceptance behavior remains captured by existing ATDD RED files and will be promoted once command handlers are implemented.
+- Risk: Runtime currently does not implement `ApplyPreprocessing` and `ReprocessDocument`; generated automation therefore emphasizes deterministic current-state guardrails and envelope-shape stability.
+- Risk mitigation: Keep ATDD RED specs intact for full future-state acceptance and use this automation suite as regression coverage during implementation.
+
+Recommended next workflow:
+- `RV` (Review Tests) for structured quality review against TEA standards.
+- Optional: `TR` (Trace Requirements) to align Story 1.4 ACs across ATDD + automation and record gate status.
