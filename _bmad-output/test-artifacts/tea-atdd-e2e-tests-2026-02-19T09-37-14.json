@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "subprocess": "atdd-e2e-tests",
+  "tests": [
+    {
+      "file": "tests/e2e/story-1-5-run-extraction-and-persist-derived-data-updates.spec.ts",
+      "content": "import { test, expect, type Page } from '@playwright/test';\n\nasync function submitRunExtractionCommand(page: Page, params: {\n  sessionId: string;\n  documentId: string;\n  profile: string;\n}) {\n  await page.getByTestId('command-type-input').fill('RunExtraction');\n  await page.getByTestId('run-extraction-session-id-input').fill(params.sessionId);\n  await page.getByTestId('run-extraction-document-id-input').fill(params.documentId);\n  await page.getByTestId('run-extraction-profile-input').fill(params.profile);\n  await page.getByTestId('command-submit-button').click();\n}\n\ntest.describe('Story 1.5 extraction flow (ATDD RED)', () => {\n  test.skip(\n    '[P1][AC1] should submit RunExtraction from command workspace and surface persisted extraction telemetry',\n    async ({ page }) => {\n      await page.goto('/');\n\n      const response = page.waitForResponse(\n        (res) =>\n          res.url().includes('/api/v1/commands/dispatch') &&\n          res.request().method() === 'POST' &&\n          res.status() === 202,\n      );\n\n      await submitRunExtractionCommand(page, {\n        sessionId: 'session-extract-e2e-001',\n        documentId: 'session-extract-e2e-001:doc-001',\n        profile: 'operations-default',\n      });\n\n      await response;\n\n      await expect(page.getByTestId('mutation-state')).toHaveText('applied');\n      await expect(page.getByTestId('event-append-state')).toHaveText('appended');\n      await expect(page.getByTestId('audit-event-type-latest')).toHaveText('ExtractionCompleted');\n      await expect(page.getByTestId('extraction-derived-values-count')).toContainText(/\\d+/);\n      await expect(page.getByTestId('extraction-table-candidates-count')).toContainText(/\\d+/);\n    },\n  );\n\n  test.skip(\n    '[P1][AC2] should show deterministic operator-facing extraction failure details when pipeline aborts pre-completion',\n    async ({ page }) => {\n      await page.goto('/');\n\n      const failureResponse = page.waitForResponse(\n        (res) =>\n          res.url().includes('/api/v1/commands/dispatch') &&\n          res.request().method() === 'POST' &&\n          res.status() === 409,\n      );\n\n      await page.getByTestId('command-type-input').fill('RunExtraction');\n      await page.getByTestId('run-extraction-session-id-input').fill('session-extract-e2e-fail-001');\n      await page.getByTestId('run-extraction-document-id-input').fill('session-extract-e2e-fail-001:doc-missing');\n      await page.getByTestId('run-extraction-profile-input').fill('operations-default');\n      await page.getByTestId('run-extraction-force-fail-stage-input').fill('extractor-runtime');\n      await page.getByTestId('command-submit-button').click();\n\n      await failureResponse;\n\n      await expect(page.getByTestId('mutation-state')).toHaveText('not-applied');\n      await expect(page.getByTestId('event-append-state')).toHaveText('not-appended');\n      await expect(page.getByTestId('command-error-code')).toHaveText('EXTRACTION_FAILED');\n      await expect(page.getByTestId('command-error-detail-latest')).toHaveText('extractor_runtime_error');\n      await expect(page.getByTestId('command-error-payload-stability')).toHaveText('deterministic');\n    },\n  );\n});\n",
+      "description": "ATDD E2E tests for story 1.5 extraction workflow (RED PHASE)",
+      "expected_to_fail": true,
+      "acceptance_criteria_covered": [
+        "RunExtraction dispatch flow can be triggered from UI",
+        "Success state exposes extraction persistence telemetry",
+        "Failure state exposes deterministic error details"
+      ],
+      "priority_coverage": {
+        "P0": 0,
+        "P1": 2,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "runExtractionCommandFormFixture",
+    "commandFailureUiFixture"
+  ],
+  "knowledge_fragments_used": [
+    "fixture-architecture",
+    "network-first",
+    "selector-resilience"
+  ],
+  "test_count": 2,
+  "tdd_phase": "RED",
+  "summary": "Generated 2 FAILING E2E tests for story 1.5"
+}
