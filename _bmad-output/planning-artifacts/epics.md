@@ -187,7 +187,7 @@ So that image quality improves without hidden or unsafe state changes.
 **And** `PreprocessingApplied` is appended in the same command transaction.
 
 2.
-**Given** already processed documents,
+**Given** imported or preprocessed documents,
 **When** I issue `ReprocessDocument`,
 **Then** only permitted lifecycle state changes occur with deterministic transition validation,
 **And** `DocumentReprocessed` is appended while preserving existing audit history.
