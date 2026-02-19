@@ -6,7 +6,7 @@ stepsCompleted:
   - step-03c-aggregate
   - step-04-validate-and-summarize
 lastStep: step-04-validate-and-summarize
-lastSaved: 2026-02-18T22:48:45Z
+lastSaved: 2026-02-19T09:38:11Z
 ---
 
 # Automation Summary - Story 1.1
@@ -202,3 +202,155 @@ Assumptions and risks:
 Recommended next workflow:
 - `RV` (Review Tests) to score the generated Story 1.2 automation suite against TEA quality criteria.
 - Optional: `TR` (Trace Requirements) to map Story 1.2 ACs across ATDD + automation coverage and make a gate decision.
+
+## Story 1.3 - Step 1: Preflight and Context
+
+- Mode selected: **BMad-Integrated** (input: `_bmad-output/implementation-artifacts/1-3-import-documents-with-duplicate-handling.md`).
+- Framework readiness verified:
+  - `playwright.config.ts` present and configured for API/E2E projects.
+  - `package.json` includes `@playwright/test` and `@seontechnologies/playwright-utils`.
+  - `tests/` structure includes `api`, `e2e`, and shared support fixtures/helpers.
+- Story and supporting artifacts loaded:
+  - Story: `_bmad-output/implementation-artifacts/1-3-import-documents-with-duplicate-handling.md`
+  - PRD: `_bmad-output/planning-artifacts/tabulara-prd-command-event-model.md`
+  - Architecture: `_bmad-output/planning-artifacts/architecture.md`
+  - Epic context: `_bmad-output/planning-artifacts/epics.md`
+  - Tech design: `_bmad-output/planning-artifacts/tabulara-command-dispatcher-guard-layer-tech-design.md`
+  - Transition/invariant spec: `_bmad-output/planning-artifacts/tabulara-state-transition-invariant-spec.md`
+  - Test design: `_bmad-output/test-artifacts/test-design-epic-1.md`
+- Existing Story 1.3 ATDD RED baseline loaded:
+  - `tests/api/story-1-3-import-documents-with-duplicate-handling.spec.ts`
+  - `tests/e2e/story-1-3-import-documents-with-duplicate-handling.spec.ts`
+- TEA config flags read:
+  - `tea_use_playwright_utils: true`
+  - `tea_browser_automation: auto`
+- Knowledge fragments loaded for this run:
+  - Core: `test-levels-framework`, `test-priorities-matrix`, `data-factories`, `selective-testing`, `ci-burn-in`, `test-quality`
+  - Playwright Utils: `overview`, `api-request`, `network-recorder`, `auth-session`, `intercept-network-call`, `recurse`, `log`, `file-utils`, `burn-in`, `network-error-monitor`, `fixtures-composition`
+  - Browser automation: `playwright-cli`
+- Browser automation tool availability:
+  - `playwright-cli`: **not installed** in this environment (`command not found`)
+
+## Story 1.3 - Step 2: Targets and Coverage Plan
+
+- Existing ATDD outputs detected and used as baseline (to avoid duplicate coverage):
+  - `tests/api/story-1-3-import-documents-with-duplicate-handling.spec.ts`
+  - `tests/e2e/story-1-3-import-documents-with-duplicate-handling.spec.ts`
+- Browser exploration decision:
+  - `tea_browser_automation` is `auto`, but `playwright-cli` is unavailable.
+  - Fallback path applied: rely on source/doc analysis (no CLI/MCP browser exploration).
+
+### Target Determination
+
+- Story acceptance criteria mapped:
+  - AC1: import command ingestion path and deterministic command-event side effects.
+  - AC2: duplicate confirmation path and deterministic correlation/linkage behavior.
+- Current implementation reality:
+  - Dispatcher currently supports only `CreateSession` and `PinSession`.
+  - Story 1.3 command types are not implemented in runtime handler path yet.
+- Coverage strategy:
+  - Preserve ATDD RED future-state assertions as-is.
+  - Add executable automation coverage for current deterministic behavior plus story-specific deterministic payload/correlation generation.
+
+### Test Levels Selected
+
+- **API (primary):**
+  - Validate current dispatch behavior for Story 1.3 command types in the live API contract surface.
+  - Validate deterministic story-specific command factory outputs used by downstream tests.
+- **E2E (minimal):**
+  - Validate operator-facing deterministic error signaling when Story 1.3 command types are dispatched from UI shell.
+- **Component/Unit:**
+  - Not selected as primary levels; equivalent deterministic checks are covered in API automation files to stay aligned with existing Playwright project layout.
+
+### Priority Assignment
+
+- **P0**
+  - ImportDocument dispatch contract (current behavior): deterministic rejection with no mutation/event side effects.
+  - ConfirmDuplicate dispatch contract (current behavior): deterministic rejection with no mutation/event side effects.
+- **P1**
+  - Deterministic correlation synthesis from `createConfirmDuplicateCommandEnvelope` payload fields.
+  - Deterministic import envelope defaults from `createImportDocumentCommandEnvelope` (metadata/blob shape).
+  - UI deterministic error-state feedback for Story 1.3 command dispatch attempts.
+
+### Coverage Scope Justification (`critical-paths`)
+
+- `critical-paths` is retained because Story 1.3 runtime command handlers are not implemented yet.
+- Automation focus is on:
+  - deterministic guardrails now (no false-positive mutation/event states),
+  - story-specific data-shape stability (factory/correlation contracts),
+  - and non-duplication with ATDD RED suites that will become GREEN once implementation lands.
+
+## Story 1.3 - Step 3: Parallel Subprocess Generation
+
+- Timestamp: `2026-02-19T09-35-16Z`
+- Subprocess A (API): `/tmp/tea-automate-api-tests-2026-02-19T09-35-16Z.json` ✅
+- Subprocess B (E2E): `/tmp/tea-automate-e2e-tests-2026-02-19T09-35-16Z.json` ✅
+- Execution model: **PARALLEL (non-sequential)**.
+- Validation:
+  - Both output files exist.
+  - Both JSON payloads parse and report `success: true`.
+
+## Story 1.3 - Step 3C: Aggregation and File Generation
+
+Generated files:
+- `tests/api/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts`
+- `tests/e2e/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts`
+
+Temporary artifacts persisted:
+- `_bmad-output/test-artifacts/temp/tea-automate-api-tests-2026-02-19T09-35-16Z.json`
+- `_bmad-output/test-artifacts/temp/tea-automate-e2e-tests-2026-02-19T09-35-16Z.json`
+- `_bmad-output/test-artifacts/temp/tea-automate-summary-2026-02-19T09-35-16Z.json`
+
+Aggregate summary (`/tmp/tea-automate-summary-2026-02-19T09-35-16Z.json`):
+- Total tests: `6`
+  - API: `4` (1 file)
+  - E2E: `2` (1 file)
+- Priority coverage:
+  - P0: `2`
+  - P1: `4`
+  - P2: `0`
+  - P3: `0`
+- Fixture needs resolved using existing support fixtures:
+  - `apiRequest`
+  - `document-import-command-factory`
+  - `skipNetworkMonitoring-annotation`
+- Shared fixture generation result:
+  - No new fixture files required.
+  - Existing support fixtures already satisfy subprocess fixture requirements.
+
+## Story 1.3 - Step 4: Validation and Final Summary
+
+Checklist validation highlights:
+- Framework readiness: **PASS**
+- Coverage mapping (AC -> targets -> priorities): **PASS**
+- Test quality:
+  - Priority tags present (`[P0]`, `[P1]`): **PASS**
+  - Deterministic waits/no hard sleeps: **PASS**
+  - Story-specific deterministic payload/correlation assertions: **PASS**
+- Fixtures/helpers:
+  - Existing support fixtures reused correctly: **PASS**
+  - No required fixture gaps from subprocess outputs: **PASS**
+- CLI session hygiene: **PASS** (CLI unavailable; no sessions opened)
+- Temp artifact location policy: **PASS** (artifacts persisted under `_bmad-output/test-artifacts/temp`)
+
+Execution results:
+- `npx playwright test tests/api/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts --project=api` -> **4 passed**
+- `npx playwright test tests/e2e/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts --project=chromium-e2e` -> **2 passed**
+
+Coverage summary (Story 1.3 automation run):
+- API: 4 tests (P0: 2, P1: 2)
+- E2E: 2 tests (P0: 0, P1: 2)
+- Total: 6 tests (P0: 2, P1: 4)
+
+Files created:
+- `tests/api/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts`
+- `tests/e2e/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts`
+
+Key assumptions and risks:
+- Assumption: Story 1.3 authoritative AC contracts remain represented by existing ATDD RED files and will be promoted once command handlers are implemented.
+- Risk: Runtime currently does not implement `ImportDocument` and `ConfirmDuplicate`; generated automation therefore emphasizes deterministic current-state guardrails and story-specific payload/correlation stability.
+- Risk mitigation: Keep ATDD RED specs intact for full future-state acceptance and use this automation suite as deterministic regression coverage during implementation.
+
+Recommended next workflow:
+- `RV` (Review Tests) for structured quality review against TEA standards.
+- Optional: `TR` (Trace Requirements) to align Story 1.3 ACs across ATDD + automation and record gate status.
