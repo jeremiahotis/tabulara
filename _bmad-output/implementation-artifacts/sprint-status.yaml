@@ -44,7 +44,7 @@ development_status:
   1-1-set-up-initial-project-from-starter-template: done
   1-2-create-and-pin-sessions-through-command-handlers: done
   1-3-import-documents-with-duplicate-handling: done
-  1-4-apply-preprocessing-and-controlled-reprocessing: ready-for-dev
+  1-4-apply-preprocessing-and-controlled-reprocessing: review
   1-5-run-extraction-and-persist-derived-data-updates: ready-for-dev
   epic-1-retrospective: optional
   epic-2: backlog

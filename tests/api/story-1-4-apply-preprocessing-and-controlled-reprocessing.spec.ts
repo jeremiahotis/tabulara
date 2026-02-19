@@ -39,7 +39,12 @@ async function seedImportedDocument(request: APIRequestContext) {
 
   const importCommand = {
     command_id: crypto.randomUUID(),
-    command_type: 'ImportDocument',
+    type: 'ImportDocument',
+    actor: {
+      id: 'ops-test-user',
+      role: 'ops-user',
+    },
+    timestamp: new Date().toISOString(),
     payload: {
       session_id: sessionId,
       blob_ids: [blobId],
@@ -69,7 +74,12 @@ async function seedImportedDocument(request: APIRequestContext) {
 function createApplyPreprocessingCommand(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     command_id: crypto.randomUUID(),
-    command_type: 'ApplyPreprocessing',
+    type: 'ApplyPreprocessing',
+    actor: {
+      id: 'ops-test-user',
+      role: 'ops-user',
+    },
+    timestamp: new Date().toISOString(),
     payload: {
       session_id: 'session-preprocess-default',
       document_id: 'missing-document-id',
@@ -83,7 +93,12 @@ function createApplyPreprocessingCommand(overrides: Partial<Record<string, unkno
 function createReprocessDocumentCommand(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     command_id: crypto.randomUUID(),
-    command_type: 'ReprocessDocument',
+    type: 'ReprocessDocument',
+    actor: {
+      id: 'ops-test-user',
+      role: 'ops-user',
+    },
+    timestamp: new Date().toISOString(),
     payload: {
       session_id: 'session-reprocess-default',
       document_id: 'missing-document-id',
@@ -95,7 +110,7 @@ function createReprocessDocumentCommand(overrides: Partial<Record<string, unknow
 }
 
 test.describe('Story 1.4 preprocessing and controlled reprocessing command handlers (ATDD RED)', () => {
-  test.skip(
+  test(
     '[P0][AC1] should apply preprocessing, link derived artifacts to source pages, and append PreprocessingApplied in one transaction',
     async ({ request }) => {
       const context = await seedImportedDocument(request);
@@ -136,7 +151,7 @@ test.describe('Story 1.4 preprocessing and controlled reprocessing command handl
     },
   );
 
-  test.skip(
+  test(
     '[P0][AC1] should roll back mutation and event append when preprocessing artifact generation fails',
     async ({ request }) => {
       const context = await seedImportedDocument(request);
@@ -167,7 +182,7 @@ test.describe('Story 1.4 preprocessing and controlled reprocessing command handl
     },
   );
 
-  test.skip('[P1][AC1] should reject ApplyPreprocessing when referenced document does not exist', async ({ request }) => {
+  test('[P1][AC1] should reject ApplyPreprocessing when referenced document does not exist', async ({ request }) => {
     const command = createApplyPreprocessingCommand({
       session_id: 'session-missing-' + crypto.randomUUID(),
       document_id: 'missing-document-' + crypto.randomUUID(),
@@ -193,7 +208,7 @@ test.describe('Story 1.4 preprocessing and controlled reprocessing command handl
     });
   });
 
-  test.skip(
+  test(
     '[P0][AC2] should allow permitted reprocessing transition and append DocumentReprocessed while preserving existing history',
     async ({ request }) => {
       const context = await seedImportedDocument(request);
@@ -239,7 +254,7 @@ test.describe('Story 1.4 preprocessing and controlled reprocessing command handl
     },
   );
 
-  test.skip('[P0][AC2] should reject disallowed lifecycle transitions with deterministic guard errors', async ({ request }) => {
+  test('[P0][AC2] should reject disallowed lifecycle transitions with deterministic guard errors', async ({ request }) => {
     const context = await seedImportedDocument(request);
     const command = createReprocessDocumentCommand({
       session_id: context.sessionId,
@@ -266,7 +281,7 @@ test.describe('Story 1.4 preprocessing and controlled reprocessing command handl
     });
   });
 
-  test.skip('[P1][AC2] should reject ReprocessDocument when referenced document is unknown', async ({ request }) => {
+  test('[P1][AC2] should reject ReprocessDocument when referenced document is unknown', async ({ request }) => {
     const command = createReprocessDocumentCommand({
       session_id: 'session-missing-' + crypto.randomUUID(),
       document_id: 'missing-document-' + crypto.randomUUID(),

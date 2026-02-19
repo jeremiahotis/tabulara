@@ -3,13 +3,14 @@ import {
   createApplyPreprocessingCommandEnvelope,
   createReprocessDocumentCommandEnvelope,
 } from '../support/fixtures/factories/preprocessing-command-factory';
+import { createImportDocumentCommandEnvelope } from '../support/fixtures/factories/document-import-command-factory';
 import {
   story14ExpectedErrorCodes,
   story14RedPhaseData,
 } from '../support/fixtures/story-1-4-red-phase-data';
 
 test.describe('Story 1.4 API automation coverage', () => {
-  test('[P0][AC1] should reject ApplyPreprocessing until command support is implemented without mutation side effects', async ({
+  test('[P0][AC1] should reject ApplyPreprocessing for unknown documents without mutation side effects', async ({
     apiRequest,
   }) => {
     const command = createApplyPreprocessingCommandEnvelope({
@@ -35,11 +36,11 @@ test.describe('Story 1.4 API automation coverage', () => {
       body: command,
     });
 
-    expect(status).toBe(400);
+    expect(status).toBe(409);
     expect(body).toMatchObject({
       error: {
-        code: 'CMD_TYPE_UNSUPPORTED',
-        category: 'validation',
+        code: story14ExpectedErrorCodes.preconditionFailed,
+        category: 'precondition',
       },
       mutation_applied: false,
       event_appended: false,
@@ -47,21 +48,44 @@ test.describe('Story 1.4 API automation coverage', () => {
     expect(body.error.details).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          field: 'type',
-          reason: 'unsupported_command_type',
+          field: 'document_id',
+          reason: story14ExpectedErrorCodes.documentNotFound,
         }),
       ]),
     );
   });
 
-  test('[P0][AC2] should reject ReprocessDocument until transition guards are implemented without mutating audit state', async ({
+  test('[P0][AC2] should reject ReprocessDocument for disallowed target states with deterministic transition errors', async ({
     apiRequest,
   }) => {
+    const importCommand = createImportDocumentCommandEnvelope({
+      payload: {
+        session_id: 'session-story-1-4-api-reprocess',
+        blob_ids: ['blob-story-1-4-api-reprocess'],
+        metadata: {
+          source: 'import',
+          file_name: 'story-1-4-api-reprocess.pdf',
+          mime_type: 'application/pdf',
+          file_hash: '1'.repeat(64),
+        },
+      },
+    });
+
+    const importResult = await apiRequest({
+      method: 'POST',
+      path: '/api/v1/commands/dispatch',
+      body: importCommand,
+    });
+    expect(importResult.status).toBe(202);
+
+    const importedDocumentId = importResult.body.documents?.[0]?.document_id;
+    expect(importedDocumentId).toBeDefined();
+
     const command = createReprocessDocumentCommandEnvelope({
       payload: {
         session_id: 'session-story-1-4-api-reprocess',
-        document_id: 'session-story-1-4-api-reprocess:doc-001',
-        target_state: story14RedPhaseData.reprocessDocument.allowedTargetState,
+        document_id: importedDocumentId,
+        target_state: story14RedPhaseData.reprocessDocument.disallowedTargetState,
       },
     });
 
@@ -79,11 +103,11 @@ test.describe('Story 1.4 API automation coverage', () => {
       body: command,
     });
 
-    expect(status).toBe(400);
+    expect(status).toBe(409);
     expect(body).toMatchObject({
       error: {
-        code: 'CMD_TYPE_UNSUPPORTED',
-        category: 'validation',
+        code: story14ExpectedErrorCodes.preconditionFailed,
+        category: 'precondition',
       },
       mutation_applied: false,
       event_appended: false,
@@ -91,8 +115,8 @@ test.describe('Story 1.4 API automation coverage', () => {
     expect(body.error.details).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          field: 'type',
-          reason: 'unsupported_command_type',
+          field: 'lifecycle_state',
+          reason: story14ExpectedErrorCodes.transitionNotAllowed,
         }),
       ]),
     );

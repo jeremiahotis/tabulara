@@ -13,6 +13,9 @@ type DispatchErrorResponse = {
   error?: {
     code?: string;
     missing_fields?: string[];
+    details?: Array<{
+      reason?: string;
+    }>;
   };
   mutation_applied?: boolean;
   event_appended?: boolean;
@@ -44,6 +47,10 @@ type DispatchAcceptedResponse = {
       deterministic_key?: string;
     };
   };
+  derived_artifacts?: Array<{
+    source_page_id?: string;
+    source_document_id?: string;
+  }>;
   events?: DispatchEvent[];
   audit_log?: DispatchEvent[];
 };
@@ -94,6 +101,7 @@ export function App() {
   const [missingFields, setMissingFields] = useState('');
   const [mutationState, setMutationState] = useState('none');
   const [eventAppendState, setEventAppendState] = useState('none');
+  const [errorDetailLatest, setErrorDetailLatest] = useState('');
   const [importSessionId, setImportSessionId] = useState('');
   const [importBlobIds, setImportBlobIds] = useState('');
   const [importMetadataSource, setImportMetadataSource] = useState('import');
@@ -109,6 +117,17 @@ export function App() {
   const [duplicateOfDocumentIdLatest, setDuplicateOfDocumentIdLatest] = useState('');
   const [duplicateCorrelationKeyLatest, setDuplicateCorrelationKeyLatest] = useState('');
   const [duplicateLinkedImportCommandLatest, setDuplicateLinkedImportCommandLatest] = useState('');
+  const [preprocessingSessionId, setPreprocessingSessionId] = useState('');
+  const [preprocessingDocumentId, setPreprocessingDocumentId] = useState('');
+  const [preprocessingPageIds, setPreprocessingPageIds] = useState('');
+  const [preprocessingProfile, setPreprocessingProfile] = useState('ocr-enhance');
+  const [reprocessSessionId, setReprocessSessionId] = useState('');
+  const [reprocessDocumentId, setReprocessDocumentId] = useState('');
+  const [reprocessTargetState, setReprocessTargetState] = useState('reprocessed');
+  const [reprocessReason, setReprocessReason] = useState('operator_requested_quality_upgrade');
+  const [derivedArtifactSourcePageLatest, setDerivedArtifactSourcePageLatest] = useState('');
+  const [derivedArtifactSourceDocumentLatest, setDerivedArtifactSourceDocumentLatest] = useState('');
+  const [auditHistoryPreserved, setAuditHistoryPreserved] = useState('false');
   const [auditEventTypeLatest, setAuditEventTypeLatest] = useState('');
   const [auditEventCausedByLatest, setAuditEventCausedByLatest] = useState('');
 
@@ -159,14 +178,18 @@ export function App() {
         const errorBody = body as DispatchErrorResponse;
         setErrorCode(errorBody.error?.code ?? '');
         setMissingFields((errorBody.error?.missing_fields ?? []).join(', '));
-        setMutationState(errorBody.mutation_applied ? 'applied' : 'none');
-        setEventAppendState(errorBody.event_appended ? 'appended' : 'none');
+        setErrorDetailLatest(errorBody.error?.details?.[0]?.reason ?? '');
+        const rejectedState = response.status === 400 ? 'none' : 'not-applied';
+        const rejectedEventState = response.status === 400 ? 'none' : 'not-appended';
+        setMutationState(errorBody.mutation_applied ? 'applied' : rejectedState);
+        setEventAppendState(errorBody.event_appended ? 'appended' : rejectedEventState);
         return false;
       }
 
       const acceptedBody = body as DispatchAcceptedResponse;
       setErrorCode('');
       setMissingFields('');
+      setErrorDetailLatest('');
       setMutationState(acceptedBody.mutation_applied ? 'applied' : 'none');
       setEventAppendState(acceptedBody.event_appended ? 'appended' : 'none');
 
@@ -208,6 +231,16 @@ export function App() {
           acceptedBody.duplicate.linked_import_command_id ?? '',
         );
       }
+
+      const latestDerivedArtifact = acceptedBody.derived_artifacts?.[0];
+      if (latestDerivedArtifact) {
+        setDerivedArtifactSourcePageLatest(latestDerivedArtifact.source_page_id ?? '');
+        setDerivedArtifactSourceDocumentLatest(latestDerivedArtifact.source_document_id ?? '');
+      }
+
+      setAuditHistoryPreserved(
+        acceptedBody.audit_log && acceptedBody.audit_log.length > 1 ? 'true' : 'false',
+      );
 
       return true;
     },
@@ -317,6 +350,42 @@ export function App() {
       return;
     }
 
+    if (normalizedType === 'ApplyPreprocessing') {
+      const resolvedSessionId =
+        preprocessingSessionId.trim() || importSessionId.trim() || lastSessionId || `session-${crypto.randomUUID()}`;
+      const resolvedDocumentId =
+        preprocessingDocumentId.trim() || lastImportedDocumentIds[0] || `${resolvedSessionId}:doc-001`;
+      const resolvedPageIds = normalizeBlobIds(preprocessingPageIds);
+      const preprocessingEnvelope = buildCommandEnvelope('ApplyPreprocessing', {
+        session_id: resolvedSessionId,
+        document_id: resolvedDocumentId,
+        page_ids: resolvedPageIds,
+        preprocessing_profile: preprocessingProfile.trim() || 'ocr-enhance',
+      });
+      const preprocessingResult = await dispatchCommand(preprocessingEnvelope);
+      applyDispatchResult(preprocessingResult.response, preprocessingResult.body);
+      return;
+    }
+
+    if (normalizedType === 'ReprocessDocument') {
+      const resolvedSessionId =
+        reprocessSessionId.trim() || preprocessingSessionId.trim() || importSessionId.trim() || lastSessionId || `session-${crypto.randomUUID()}`;
+      const resolvedDocumentId =
+        reprocessDocumentId.trim() ||
+        preprocessingDocumentId.trim() ||
+        lastImportedDocumentIds[0] ||
+        `${resolvedSessionId}:doc-001`;
+      const reprocessEnvelope = buildCommandEnvelope('ReprocessDocument', {
+        session_id: resolvedSessionId,
+        document_id: resolvedDocumentId,
+        target_state: reprocessTargetState.trim() || 'reprocessed',
+        reason: reprocessReason.trim() || 'operator_requested_quality_upgrade',
+      });
+      const reprocessResult = await dispatchCommand(reprocessEnvelope);
+      applyDispatchResult(reprocessResult.response, reprocessResult.body);
+      return;
+    }
+
     const unsupportedEnvelope = buildCommandEnvelope(normalizedType, {});
     const unsupportedResult = await dispatchCommand(unsupportedEnvelope);
     applyDispatchResult(unsupportedResult.response, unsupportedResult.body);
@@ -336,6 +405,14 @@ export function App() {
     lastImportCommandId,
     lastImportedDocumentIds,
     lastSessionId,
+    preprocessingDocumentId,
+    preprocessingPageIds,
+    preprocessingProfile,
+    preprocessingSessionId,
+    reprocessDocumentId,
+    reprocessReason,
+    reprocessSessionId,
+    reprocessTargetState,
   ]);
 
   return (
@@ -442,8 +519,83 @@ export function App() {
         onChange={(event) => setDuplicateSourceCommandId(event.target.value)}
       />
 
+      <label htmlFor="preprocessingSessionId">Preprocessing session ID</label>
+      <input
+        id="preprocessingSessionId"
+        data-testid="preprocessing-session-id-input"
+        placeholder="session-preprocess-001"
+        value={preprocessingSessionId}
+        onChange={(event) => setPreprocessingSessionId(event.target.value)}
+      />
+
+      <label htmlFor="preprocessingDocumentId">Preprocessing document ID</label>
+      <input
+        id="preprocessingDocumentId"
+        data-testid="preprocessing-document-id-input"
+        placeholder="session-preprocess-001:blob-preprocess-001"
+        value={preprocessingDocumentId}
+        onChange={(event) => setPreprocessingDocumentId(event.target.value)}
+      />
+
+      <label htmlFor="preprocessingPageIds">Preprocessing page IDs (comma-separated)</label>
+      <input
+        id="preprocessingPageIds"
+        data-testid="preprocessing-page-ids-input"
+        placeholder="page-1,page-2"
+        value={preprocessingPageIds}
+        onChange={(event) => setPreprocessingPageIds(event.target.value)}
+      />
+
+      <label htmlFor="preprocessingProfile">Preprocessing profile</label>
+      <input
+        id="preprocessingProfile"
+        data-testid="preprocessing-profile-input"
+        placeholder="ocr-enhance"
+        value={preprocessingProfile}
+        onChange={(event) => setPreprocessingProfile(event.target.value)}
+      />
+
+      <label htmlFor="reprocessSessionId">Reprocess session ID</label>
+      <input
+        id="reprocessSessionId"
+        data-testid="reprocess-session-id-input"
+        placeholder="session-reprocess-001"
+        value={reprocessSessionId}
+        onChange={(event) => setReprocessSessionId(event.target.value)}
+      />
+
+      <label htmlFor="reprocessDocumentId">Reprocess document ID</label>
+      <input
+        id="reprocessDocumentId"
+        data-testid="reprocess-document-id-input"
+        placeholder="session-reprocess-001:blob-reprocess-001"
+        value={reprocessDocumentId}
+        onChange={(event) => setReprocessDocumentId(event.target.value)}
+      />
+
+      <label htmlFor="reprocessTargetState">Reprocess target state</label>
+      <input
+        id="reprocessTargetState"
+        data-testid="reprocess-target-state-input"
+        placeholder="reprocessed"
+        value={reprocessTargetState}
+        onChange={(event) => setReprocessTargetState(event.target.value)}
+      />
+
+      <label htmlFor="reprocessReason">Reprocess reason</label>
+      <input
+        id="reprocessReason"
+        data-testid="reprocess-reason-input"
+        placeholder="operator_requested_quality_upgrade"
+        value={reprocessReason}
+        onChange={(event) => setReprocessReason(event.target.value)}
+      />
+
       <p className="row">
         Error code: <span data-testid="command-error-code">{errorCode}</span>
+      </p>
+      <p className="row">
+        Error detail latest: <span data-testid="command-error-detail-latest">{errorDetailLatest}</span>
       </p>
       <p className="row">
         Missing fields: <span data-testid="command-error-missing-fields">{missingFields}</span>
@@ -469,6 +621,17 @@ export function App() {
       <p className="row">
         Duplicate linked import command:{' '}
         <span data-testid="duplicate-linked-import-command-latest">{duplicateLinkedImportCommandLatest}</span>
+      </p>
+      <p className="row">
+        Derived artifact source page:{' '}
+        <span data-testid="derived-artifact-source-page-latest">{derivedArtifactSourcePageLatest}</span>
+      </p>
+      <p className="row">
+        Derived artifact source document:{' '}
+        <span data-testid="derived-artifact-source-document-latest">{derivedArtifactSourceDocumentLatest}</span>
+      </p>
+      <p className="row">
+        Audit history preserved: <span data-testid="audit-history-preserved">{auditHistoryPreserved}</span>
       </p>
       <p className="row">
         Latest audit event: <span data-testid="audit-event-type-latest">{auditEventTypeLatest}</span>

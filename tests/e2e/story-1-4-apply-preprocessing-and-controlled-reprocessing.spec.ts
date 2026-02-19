@@ -18,7 +18,7 @@ async function dispatchImportForSession(page: Page, sessionId: string, blobIds: 
 }
 
 test.describe('Story 1.4 preprocessing and controlled reprocessing workflow (ATDD RED)', () => {
-  test.skip(
+  test(
     '[P0][AC1] should run ApplyPreprocessing and surface derived artifact linkage plus PreprocessingApplied evidence',
     async ({ page }) => {
       await page.goto('/');
@@ -53,7 +53,7 @@ test.describe('Story 1.4 preprocessing and controlled reprocessing workflow (ATD
     },
   );
 
-  test.skip('[P1][AC1] should reject ApplyPreprocessing for missing documents with stable operator-visible error details', async ({ page }) => {
+  test('[P1][AC1] should reject ApplyPreprocessing for missing documents with stable operator-visible error details', async ({ page }) => {
     await page.goto('/');
 
     const failedPreprocessResponse = page.waitForResponse(
@@ -80,7 +80,7 @@ test.describe('Story 1.4 preprocessing and controlled reprocessing workflow (ATD
     await expect(page.getByTestId('command-error-detail-latest')).toHaveText('document_not_found');
   });
 
-  test.skip(
+  test(
     '[P0][AC2] should allow ReprocessDocument on permitted transitions and append DocumentReprocessed while preserving prior audit evidence',
     async ({ page }) => {
       await page.goto('/');
@@ -127,7 +127,7 @@ test.describe('Story 1.4 preprocessing and controlled reprocessing workflow (ATD
     },
   );
 
-  test.skip('[P0][AC2] should block disallowed lifecycle transitions with deterministic transition guard errors', async ({ page }) => {
+  test('[P0][AC2] should block disallowed lifecycle transitions with deterministic transition guard errors', async ({ page }) => {
     await page.goto('/');
     const sessionId = 'session-reprocess-e2e-002';
     await dispatchImportForSession(page, sessionId, 'blob-reprocess-002');
