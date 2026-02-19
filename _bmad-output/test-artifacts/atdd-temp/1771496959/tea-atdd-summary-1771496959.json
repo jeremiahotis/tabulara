@@ -1,0 +1,35 @@
+{
+  "tdd_phase": "RED",
+  "total_tests": 10,
+  "api_tests": 6,
+  "e2e_tests": 4,
+  "all_tests_skipped": true,
+  "expected_to_fail": true,
+  "fixtures_created": 1,
+  "fixture_needs_identified": [
+    "story14ApplyPreprocessingPayloadFactory",
+    "story14ReprocessDocumentPayloadFactory",
+    "story14CommandFormSelectorMap",
+    "story14ReprocessUiSeedFixture"
+  ],
+  "acceptance_criteria_covered": [
+    "ApplyPreprocessing creates derived artifacts linked to source pages",
+    "PreprocessingApplied is appended in same command transaction",
+    "ReprocessDocument enforces deterministic permitted transitions",
+    "DocumentReprocessed appends while preserving existing audit history",
+    "Operator can run ApplyPreprocessing from command workflow",
+    "Operator sees transactional append state and PreprocessingApplied evidence",
+    "Operator can run ReprocessDocument for permitted transitions",
+    "Operator sees deterministic rejection for disallowed transitions"
+  ],
+  "knowledge_fragments_used": [
+    "api-request",
+    "data-factories",
+    "api-testing-patterns",
+    "fixture-architecture",
+    "network-first",
+    "selector-resilience"
+  ],
+  "subprocess_execution": "PARALLEL (API + E2E)",
+  "performance_gain": "~50% faster than sequential"
+}
