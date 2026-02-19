@@ -7,6 +7,6 @@ export const story15RedPhaseData = {
 };
 
 export const story15ExpectedErrorCodes = {
-  unsupportedType: 'CMD_TYPE_UNSUPPORTED',
-  unsupportedReason: 'unsupported_command_type',
+  extractionFailed: 'EXTRACTION_FAILED',
+  extractionFailureReason: 'extractor_runtime_error',
 };

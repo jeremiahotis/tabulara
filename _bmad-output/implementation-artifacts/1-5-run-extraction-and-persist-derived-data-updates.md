@@ -1,6 +1,6 @@
 # Story 1.5: Run Extraction and Persist Derived Data Updates
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -24,9 +24,9 @@ so that verification can begin from reproducible machine-generated candidates.
 
 ## Tasks / Subtasks
 
-- [ ] Implement `RunExtraction` command flow and transactional persistence of derived outputs (AC: 1)
-- [ ] Implement rollback and deterministic failure payloads for extraction pipeline errors (AC: 2)
-- [ ] Add tests for successful extraction event append and rollback behavior (AC: 1, 2)
+- [x] Implement `RunExtraction` command flow and transactional persistence of derived outputs (AC: 1)
+- [x] Implement rollback and deterministic failure payloads for extraction pipeline errors (AC: 2)
+- [x] Add tests for successful extraction event append and rollback behavior (AC: 1, 2)
 
 ## Dev Notes
 
@@ -51,7 +51,24 @@ so that verification can begin from reproducible machine-generated candidates.
 GPT-5 Codex
 
 ### Debug Log References
+- `npm run test:api` (pass; 38 passed, 14 skipped)
+- `npm run test:e2e` (pass; 19 passed, 7 skipped)
 
 ### Completion Notes List
+- Implemented `RunExtraction` in `scripts/command-dispatcher.mjs` with payload validation, atomic persistence of deterministic extraction outputs, and `ExtractionCompleted` + `DerivedDataUpdated` events linked by `caused_by`.
+- Added deterministic extraction failure handling (`EXTRACTION_FAILED` with `payload_stability: deterministic`) and rollback path (`run_extraction: transaction_rolled_back`) for pre-commit failure simulation.
+- Extended shell command UI in `src/App.tsx` with `RunExtraction` input fields and telemetry/error bindings required for operator-visible extraction counts and failure stability feedback.
+- Updated Story 1.5 API and E2E automation tests to validate accepted extraction flow, event append linkage, rollback semantics, and deterministic failure envelopes.
 
 ### File List
+- scripts/command-dispatcher.mjs
+- src/App.tsx
+- tests/api/story-1-5-run-extraction-and-persist-derived-data-updates.automation.spec.ts
+- tests/e2e/story-1-5-run-extraction-and-persist-derived-data-updates.automation.spec.ts
+- tests/support/fixtures/story-1-5-red-phase-data.ts
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+- _bmad-output/implementation-artifacts/1-5-run-extraction-and-persist-derived-data-updates.md
+
+## Change Log
+
+- 2026-02-19: Implemented Story 1.5 extraction command flow with transactional persistence, deterministic rollback/failure handling, and updated Story 1.5 automation coverage.

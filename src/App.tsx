@@ -16,6 +16,7 @@ type DispatchErrorResponse = {
     details?: Array<{
       reason?: string;
     }>;
+    payload_stability?: string;
   };
   mutation_applied?: boolean;
   event_appended?: boolean;
@@ -51,6 +52,10 @@ type DispatchAcceptedResponse = {
     source_page_id?: string;
     source_document_id?: string;
   }>;
+  extraction_outputs?: {
+    table_candidates?: Array<Record<string, unknown>>;
+    derived_values?: Array<Record<string, unknown>>;
+  };
   events?: DispatchEvent[];
   audit_log?: DispatchEvent[];
 };
@@ -125,8 +130,15 @@ export function App() {
   const [reprocessDocumentId, setReprocessDocumentId] = useState('');
   const [reprocessTargetState, setReprocessTargetState] = useState('reprocessed');
   const [reprocessReason, setReprocessReason] = useState('operator_requested_quality_upgrade');
+  const [runExtractionSessionId, setRunExtractionSessionId] = useState('');
+  const [runExtractionDocumentId, setRunExtractionDocumentId] = useState('');
+  const [runExtractionProfile, setRunExtractionProfile] = useState('operations-default');
+  const [runExtractionForceFailStage, setRunExtractionForceFailStage] = useState('');
   const [derivedArtifactSourcePageLatest, setDerivedArtifactSourcePageLatest] = useState('');
   const [derivedArtifactSourceDocumentLatest, setDerivedArtifactSourceDocumentLatest] = useState('');
+  const [extractionDerivedValuesCount, setExtractionDerivedValuesCount] = useState('0');
+  const [extractionTableCandidatesCount, setExtractionTableCandidatesCount] = useState('0');
+  const [errorPayloadStability, setErrorPayloadStability] = useState('');
   const [auditHistoryPreserved, setAuditHistoryPreserved] = useState('false');
   const [auditEventTypeLatest, setAuditEventTypeLatest] = useState('');
   const [auditEventCausedByLatest, setAuditEventCausedByLatest] = useState('');
@@ -179,6 +191,7 @@ export function App() {
         setErrorCode(errorBody.error?.code ?? '');
         setMissingFields((errorBody.error?.missing_fields ?? []).join(', '));
         setErrorDetailLatest(errorBody.error?.details?.[0]?.reason ?? '');
+        setErrorPayloadStability(errorBody.error?.payload_stability ?? '');
         const rejectedState = response.status === 400 ? 'none' : 'not-applied';
         const rejectedEventState = response.status === 400 ? 'none' : 'not-appended';
         setMutationState(errorBody.mutation_applied ? 'applied' : rejectedState);
@@ -190,6 +203,7 @@ export function App() {
       setErrorCode('');
       setMissingFields('');
       setErrorDetailLatest('');
+      setErrorPayloadStability('');
       setMutationState(acceptedBody.mutation_applied ? 'applied' : 'none');
       setEventAppendState(acceptedBody.event_appended ? 'appended' : 'none');
 
@@ -237,6 +251,13 @@ export function App() {
         setDerivedArtifactSourcePageLatest(latestDerivedArtifact.source_page_id ?? '');
         setDerivedArtifactSourceDocumentLatest(latestDerivedArtifact.source_document_id ?? '');
       }
+
+      setExtractionDerivedValuesCount(
+        String(acceptedBody.extraction_outputs?.derived_values?.length ?? 0),
+      );
+      setExtractionTableCandidatesCount(
+        String(acceptedBody.extraction_outputs?.table_candidates?.length ?? 0),
+      );
 
       setAuditHistoryPreserved(
         acceptedBody.audit_log && acceptedBody.audit_log.length > 1 ? 'true' : 'false',
@@ -386,6 +407,33 @@ export function App() {
       return;
     }
 
+    if (normalizedType === 'RunExtraction') {
+      const resolvedSessionId =
+        runExtractionSessionId.trim() ||
+        preprocessingSessionId.trim() ||
+        importSessionId.trim() ||
+        lastSessionId ||
+        `session-${crypto.randomUUID()}`;
+      const resolvedDocumentId =
+        runExtractionDocumentId.trim() ||
+        preprocessingDocumentId.trim() ||
+        lastImportedDocumentIds[0] ||
+        `${resolvedSessionId}:doc-001`;
+      const envelopePayload: Record<string, unknown> = {
+        session_id: resolvedSessionId,
+        document_id: resolvedDocumentId,
+        extraction_profile: runExtractionProfile.trim() || 'operations-default',
+        source_state: 'preprocess-ready',
+      };
+      if (runExtractionForceFailStage.trim().length > 0) {
+        envelopePayload.force_fail_stage = runExtractionForceFailStage.trim();
+      }
+      const extractionEnvelope = buildCommandEnvelope('RunExtraction', envelopePayload);
+      const extractionResult = await dispatchCommand(extractionEnvelope);
+      applyDispatchResult(extractionResult.response, extractionResult.body);
+      return;
+    }
+
     const unsupportedEnvelope = buildCommandEnvelope(normalizedType, {});
     const unsupportedResult = await dispatchCommand(unsupportedEnvelope);
     applyDispatchResult(unsupportedResult.response, unsupportedResult.body);
@@ -409,6 +457,10 @@ export function App() {
     preprocessingPageIds,
     preprocessingProfile,
     preprocessingSessionId,
+    runExtractionDocumentId,
+    runExtractionForceFailStage,
+    runExtractionProfile,
+    runExtractionSessionId,
     reprocessDocumentId,
     reprocessReason,
     reprocessSessionId,
@@ -591,11 +643,51 @@ export function App() {
         onChange={(event) => setReprocessReason(event.target.value)}
       />
 
+      <label htmlFor="runExtractionSessionId">Run extraction session ID</label>
+      <input
+        id="runExtractionSessionId"
+        data-testid="run-extraction-session-id-input"
+        placeholder="session-extract-001"
+        value={runExtractionSessionId}
+        onChange={(event) => setRunExtractionSessionId(event.target.value)}
+      />
+
+      <label htmlFor="runExtractionDocumentId">Run extraction document ID</label>
+      <input
+        id="runExtractionDocumentId"
+        data-testid="run-extraction-document-id-input"
+        placeholder="session-extract-001:doc-001"
+        value={runExtractionDocumentId}
+        onChange={(event) => setRunExtractionDocumentId(event.target.value)}
+      />
+
+      <label htmlFor="runExtractionProfile">Run extraction profile</label>
+      <input
+        id="runExtractionProfile"
+        data-testid="run-extraction-profile-input"
+        placeholder="operations-default"
+        value={runExtractionProfile}
+        onChange={(event) => setRunExtractionProfile(event.target.value)}
+      />
+
+      <label htmlFor="runExtractionForceFailStage">Run extraction force fail stage</label>
+      <input
+        id="runExtractionForceFailStage"
+        data-testid="run-extraction-force-fail-stage-input"
+        placeholder="extractor-runtime"
+        value={runExtractionForceFailStage}
+        onChange={(event) => setRunExtractionForceFailStage(event.target.value)}
+      />
+
       <p className="row">
         Error code: <span data-testid="command-error-code">{errorCode}</span>
       </p>
       <p className="row">
         Error detail latest: <span data-testid="command-error-detail-latest">{errorDetailLatest}</span>
+      </p>
+      <p className="row">
+        Error payload stability:{' '}
+        <span data-testid="command-error-payload-stability">{errorPayloadStability}</span>
       </p>
       <p className="row">
         Missing fields: <span data-testid="command-error-missing-fields">{missingFields}</span>
@@ -629,6 +721,14 @@ export function App() {
       <p className="row">
         Derived artifact source document:{' '}
         <span data-testid="derived-artifact-source-document-latest">{derivedArtifactSourceDocumentLatest}</span>
+      </p>
+      <p className="row">
+        Extraction derived values count:{' '}
+        <span data-testid="extraction-derived-values-count">{extractionDerivedValuesCount}</span>
+      </p>
+      <p className="row">
+        Extraction table candidates count:{' '}
+        <span data-testid="extraction-table-candidates-count">{extractionTableCandidatesCount}</span>
       </p>
       <p className="row">
         Audit history preserved: <span data-testid="audit-history-preserved">{auditHistoryPreserved}</span>

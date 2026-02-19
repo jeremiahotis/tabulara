@@ -3,7 +3,7 @@ import { createRunExtractionCommandEnvelope } from '../support/fixtures/factorie
 import { story15ExpectedErrorCodes, story15RedPhaseData } from '../support/fixtures/story-1-5-red-phase-data';
 
 test.describe('Story 1.5 API automation coverage', () => {
-  test('[P0][AC1] should reject RunExtraction as unsupported and keep mutation/event side effects disabled', async ({
+  test('[P0][AC1] should accept RunExtraction, persist extraction outputs, and append extraction events', async ({
     apiRequest,
   }) => {
     const command = createRunExtractionCommandEnvelope({
@@ -14,62 +14,65 @@ test.describe('Story 1.5 API automation coverage', () => {
     });
 
     const { status, body } = await apiRequest<{
-      error: {
-        code: string;
-        category: string;
-        details: Array<{ field: string; reason: string }>;
-        allowed_types: string[];
-      };
+      accepted: boolean;
+      command_id: string;
       mutation_applied: boolean;
       event_appended: boolean;
+      extraction_outputs: {
+        tokens: Array<Record<string, unknown>>;
+        lines: Array<Record<string, unknown>>;
+        table_candidates: Array<Record<string, unknown>>;
+        derived_values: Array<Record<string, unknown>>;
+      };
+      events: Array<{ type: string; caused_by: string }>;
     }>({
       method: 'POST',
       path: '/api/v1/commands/dispatch',
       body: command,
     });
 
-    expect(status).toBe(400);
+    expect(status).toBe(202);
     expect(body).toMatchObject({
-      error: {
-        code: story15ExpectedErrorCodes.unsupportedType,
-        category: 'validation',
-      },
-      mutation_applied: false,
-      event_appended: false,
+      accepted: true,
+      command_id: command.command_id,
+      mutation_applied: true,
+      event_appended: true,
     });
-    expect(body.error.details).toEqual(
+    expect(body.extraction_outputs).toMatchObject({
+      tokens: expect.any(Array),
+      lines: expect.any(Array),
+      table_candidates: expect.any(Array),
+      derived_values: expect.any(Array),
+    });
+    expect(body.events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          field: 'type',
-          reason: story15ExpectedErrorCodes.unsupportedReason,
+          type: 'ExtractionCompleted',
+          caused_by: command.command_id,
         }),
-      ]),
-    );
-    expect(body.error.allowed_types).toEqual(
-      expect.arrayContaining([
-        'CreateSession',
-        'PinSession',
-        'ImportDocument',
-        'ConfirmDuplicate',
-        'ApplyPreprocessing',
-        'ReprocessDocument',
+        expect.objectContaining({
+          type: 'DerivedDataUpdated',
+          caused_by: command.command_id,
+        }),
       ]),
     );
   });
 
-  test('[P0][AC2] should return deterministic unsupported-command payloads for repeated RunExtraction dispatches', async ({
+  test('[P0][AC2] should return deterministic extractor failure payloads with mutation rollback semantics', async ({
     apiRequest,
   }) => {
     const command = createRunExtractionCommandEnvelope({
       payload: {
         session_id: 'session-story-1-5-api-repeat',
         document_id: 'session-story-1-5-api-repeat:doc-001',
+        force_fail_stage: 'extractor-runtime',
       },
     });
 
     const first = await apiRequest<{
       error: {
         code: string;
+        payload_stability: string;
         details: Array<{ field: string; reason: string }>;
       };
       mutation_applied: boolean;
@@ -92,18 +95,20 @@ test.describe('Story 1.5 API automation coverage', () => {
       body: command,
     });
 
-    expect(first.status).toBe(400);
-    expect(second.status).toBe(400);
-    expect(first.body.error.code).toBe(story15ExpectedErrorCodes.unsupportedType);
-    expect(second.body.error.code).toBe(story15ExpectedErrorCodes.unsupportedType);
+    expect(first.status).toBe(409);
+    expect(second.status).toBe(409);
+    expect(first.body.error.code).toBe(story15ExpectedErrorCodes.extractionFailed);
+    expect(second.body.error.code).toBe(story15ExpectedErrorCodes.extractionFailed);
     expect(first.body.error.details[0]).toMatchObject({
-      field: 'type',
-      reason: story15ExpectedErrorCodes.unsupportedReason,
+      field: 'pipeline',
+      reason: story15ExpectedErrorCodes.extractionFailureReason,
     });
     expect(second.body.error.details[0]).toMatchObject({
-      field: 'type',
-      reason: story15ExpectedErrorCodes.unsupportedReason,
+      field: 'pipeline',
+      reason: story15ExpectedErrorCodes.extractionFailureReason,
     });
+    expect(first.body.error.payload_stability).toBe('deterministic');
+    expect(second.body.error.payload_stability).toBe('deterministic');
     expect(first.body.mutation_applied).toBe(false);
     expect(second.body.mutation_applied).toBe(false);
     expect(first.body.event_appended).toBe(false);

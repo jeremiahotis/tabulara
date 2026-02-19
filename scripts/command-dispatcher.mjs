@@ -17,6 +17,7 @@ const REQUIRED_APPLY_PREPROCESSING_FIELDS = [
   'preprocessing_profile',
 ];
 const REQUIRED_REPROCESS_DOCUMENT_FIELDS = ['session_id', 'document_id', 'target_state', 'reason'];
+const REQUIRED_RUN_EXTRACTION_FIELDS = ['session_id', 'document_id', 'extraction_profile', 'source_state'];
 const SUPPORTED_COMMAND_TYPES = new Set([
   'CreateSession',
   'PinSession',
@@ -24,6 +25,7 @@ const SUPPORTED_COMMAND_TYPES = new Set([
   'ConfirmDuplicate',
   'ApplyPreprocessing',
   'ReprocessDocument',
+  'RunExtraction',
 ]);
 const SUPPORTED_ACTOR_ROLES = new Set(['ops-user', 'service']);
 
@@ -388,6 +390,46 @@ function validateReprocessDocumentPayload(payload) {
   return { ok: true };
 }
 
+function validateRunExtractionPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return {
+      ok: false,
+      error: {
+        code: 'CMD_PAYLOAD_VALIDATION_FAILED',
+        category: 'validation',
+        missing_fields: [...REQUIRED_RUN_EXTRACTION_FIELDS],
+      },
+    };
+  }
+
+  const missingFields = [];
+  if (typeof payload.session_id !== 'string' || payload.session_id.trim().length === 0) {
+    missingFields.push('session_id');
+  }
+  if (typeof payload.document_id !== 'string' || payload.document_id.trim().length === 0) {
+    missingFields.push('document_id');
+  }
+  if (typeof payload.extraction_profile !== 'string' || payload.extraction_profile.trim().length === 0) {
+    missingFields.push('extraction_profile');
+  }
+  if (typeof payload.source_state !== 'string' || payload.source_state.trim().length === 0) {
+    missingFields.push('source_state');
+  }
+
+  if (missingFields.length > 0) {
+    return {
+      ok: false,
+      error: {
+        code: 'CMD_PAYLOAD_VALIDATION_FAILED',
+        category: 'validation',
+        missing_fields: missingFields,
+      },
+    };
+  }
+
+  return { ok: true };
+}
+
 function createAuditEvent({ command, type, data }) {
   return {
     event_id: randomUUID(),
@@ -449,19 +491,52 @@ function isTransitionAllowed(currentState, targetState) {
   return allowedTransitions.get(currentState)?.has(targetState) ?? false;
 }
 
+function buildExtractionOutputs(commandEnvelope) {
+  const documentId = commandEnvelope.payload.document_id;
+  const profile = commandEnvelope.payload.extraction_profile;
+  const tokenSeed = `${documentId}:${profile}`;
+  return {
+    tokens: [
+      { token: 'invoice', confidence: 0.99, source: tokenSeed },
+      { token: 'total', confidence: 0.97, source: tokenSeed },
+    ],
+    lines: [
+      { line_number: 1, text: `Document ${documentId}` },
+      { line_number: 2, text: `Profile ${profile}` },
+    ],
+    table_candidates: [
+      { table_id: `${documentId}:table-1`, row_count: 2, column_count: 3 },
+    ],
+    derived_values: [
+      { field: 'vendor_name', value: 'Deterministic Vendor', confidence: 0.95 },
+      { field: 'invoice_total', value: '1250.00', confidence: 0.94 },
+    ],
+  };
+}
+
 function runAtomicMutation(store, mutate) {
   const sessions = new Map(store.sessions);
   const documents = new Map(store.documents);
   const duplicates = new Map(store.duplicates);
   const derivedArtifacts = new Map(store.derivedArtifacts);
+  const extractionOutputs = new Map(store.extractionOutputs);
   const auditLog = [...store.auditLog];
   const transaction = { atomic: true };
 
-  const result = mutate({ sessions, documents, duplicates, derivedArtifacts, auditLog, transaction });
+  const result = mutate({
+    sessions,
+    documents,
+    duplicates,
+    derivedArtifacts,
+    extractionOutputs,
+    auditLog,
+    transaction,
+  });
   store.sessions = sessions;
   store.documents = documents;
   store.duplicates = duplicates;
   store.derivedArtifacts = derivedArtifacts;
+  store.extractionOutputs = extractionOutputs;
   store.auditLog = auditLog;
 
   return result;
@@ -473,6 +548,7 @@ export function createCommandDispatcher() {
     documents: new Map(),
     duplicates: new Map(),
     derivedArtifacts: new Map(),
+    extractionOutputs: new Map(),
     auditLog: [],
     commandLog: new Map(),
   };
@@ -1156,6 +1232,140 @@ export function createCommandDispatcher() {
             event_appended: true,
             transaction: mutationResult.transaction,
             events: sessionEvents,
+            audit_log: [...store.auditLog],
+          },
+        };
+      }
+
+      if (commandEnvelope.type === 'RunExtraction') {
+        const payloadValidation = validateRunExtractionPayload(commandEnvelope.payload);
+        if (!payloadValidation.ok) {
+          return {
+            statusCode: 400,
+            body: {
+              error: payloadValidation.error,
+              mutation_applied: false,
+              event_appended: false,
+            },
+          };
+        }
+
+        if (commandEnvelope.payload.force_fail_stage === 'extractor-runtime') {
+          return {
+            statusCode: 409,
+            body: {
+              error: {
+                code: 'EXTRACTION_FAILED',
+                category: 'pipeline',
+                details: [
+                  {
+                    field: 'pipeline',
+                    reason: 'extractor_runtime_error',
+                  },
+                ],
+                payload_stability: 'deterministic',
+              },
+              mutation_applied: false,
+              event_appended: false,
+            },
+          };
+        }
+
+        const sessionId = commandEnvelope.payload.session_id;
+        const documentId = commandEnvelope.payload.document_id;
+        const extractionOutputs = buildExtractionOutputs(commandEnvelope);
+
+        let mutationResult;
+        try {
+          mutationResult = runAtomicMutation(
+            store,
+            ({ sessions, extractionOutputs: extractionOutputStore, auditLog, transaction }) => {
+              if (commandEnvelope.payload.force_fail_stage === 'persistence-before-commit') {
+                throw new Error('transaction_rolled_back');
+              }
+
+              const timestamp = new Date().toISOString();
+              const existingSession = sessions.get(sessionId);
+              if (existingSession) {
+                sessions.set(sessionId, {
+                  ...existingSession,
+                  updated_at: timestamp,
+                });
+              } else {
+                sessions.set(sessionId, {
+                  id: sessionId,
+                  project_id: 'extraction-session',
+                  schema_id: 'extraction-schema',
+                  status: 'active',
+                  pinned: false,
+                  created_at: timestamp,
+                  updated_at: timestamp,
+                });
+              }
+
+              extractionOutputStore.set(documentId, {
+                session_id: sessionId,
+                document_id: documentId,
+                extraction_profile: commandEnvelope.payload.extraction_profile,
+                source_state: commandEnvelope.payload.source_state,
+                generated_by_command_id: commandEnvelope.command_id,
+                outputs: extractionOutputs,
+                generated_at: timestamp,
+              });
+
+              const extractionCompletedEvent = createAuditEvent({
+                command: commandEnvelope,
+                type: 'ExtractionCompleted',
+                data: {
+                  session_id: sessionId,
+                  document_id: documentId,
+                  extraction_profile: commandEnvelope.payload.extraction_profile,
+                },
+              });
+              const derivedDataUpdatedEvent = createAuditEvent({
+                command: commandEnvelope,
+                type: 'DerivedDataUpdated',
+                data: {
+                  session_id: sessionId,
+                  document_id: documentId,
+                  derived_value_count: extractionOutputs.derived_values.length,
+                },
+              });
+
+              auditLog.push(extractionCompletedEvent, derivedDataUpdatedEvent);
+
+              return {
+                transaction,
+                extractionOutputs,
+                events: [extractionCompletedEvent, derivedDataUpdatedEvent],
+              };
+            },
+          );
+        } catch {
+          return createPreconditionFailure([
+            {
+              field: 'run_extraction',
+              reason: 'transaction_rolled_back',
+            },
+          ]);
+        }
+
+        store.commandLog.set(commandEnvelope.command_id, {
+          type: 'RunExtraction',
+          session_id: sessionId,
+          document_id: documentId,
+        });
+
+        return {
+          statusCode: 202,
+          body: {
+            accepted: true,
+            command_id: commandEnvelope.command_id,
+            mutation_applied: true,
+            event_appended: true,
+            transaction: mutationResult.transaction,
+            extraction_outputs: mutationResult.extractionOutputs,
+            events: mutationResult.events,
             audit_log: [...store.auditLog],
           },
         };
