@@ -21,7 +21,7 @@ export const story13RequiredTestIds = [
 ] as const;
 
 export const story13DeterministicCorrelationShape = {
-  pair_key: 'doc-duplicate::<doc-original>',
+  pair_key: 'doc-duplicate::doc-original',
   deterministic_key: 'session-id:doc-duplicate:doc-original',
   source_import_command_id: 'command-id',
 } as const;

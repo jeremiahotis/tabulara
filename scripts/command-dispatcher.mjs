@@ -222,17 +222,33 @@ function validateConfirmDuplicatePayload(payload) {
   }
 
   const missingFields = [];
+  const invalidDetails = [];
+
+  const normalizedDocumentId =
+    typeof payload.document_id === 'string' ? payload.document_id.trim() : '';
+  const normalizedDuplicateOfDocumentId =
+    typeof payload.duplicate_of_document_id === 'string'
+      ? payload.duplicate_of_document_id.trim()
+      : '';
+
   if (typeof payload.session_id !== 'string' || payload.session_id.trim().length === 0) {
     missingFields.push('session_id');
   }
-  if (typeof payload.document_id !== 'string' || payload.document_id.trim().length === 0) {
+  if (normalizedDocumentId.length === 0) {
     missingFields.push('document_id');
   }
-  if (
-    typeof payload.duplicate_of_document_id !== 'string' ||
-    payload.duplicate_of_document_id.trim().length === 0
-  ) {
+  if (normalizedDuplicateOfDocumentId.length === 0) {
     missingFields.push('duplicate_of_document_id');
+  }
+  if (
+    normalizedDocumentId.length > 0 &&
+    normalizedDuplicateOfDocumentId.length > 0 &&
+    normalizedDocumentId === normalizedDuplicateOfDocumentId
+  ) {
+    invalidDetails.push({
+      field: 'duplicate_of_document_id',
+      reason: 'must_differ_from_document_id',
+    });
   }
 
   const correlation = payload.correlation;
@@ -250,17 +266,24 @@ function validateConfirmDuplicatePayload(payload) {
       correlation.detector !== 'hash' &&
       correlation.detector !== 'operator'
     ) {
-      missingFields.push('correlation.detector');
+      invalidDetails.push({ field: 'correlation.detector', reason: 'invalid' });
     }
   }
 
-  if (missingFields.length > 0) {
+  if (missingFields.length > 0 || invalidDetails.length > 0) {
+    const details = [
+      ...missingFields.map((field) => ({ field, reason: 'required' })),
+      ...invalidDetails,
+    ];
+
     return {
       ok: false,
       error: {
         code: 'CMD_PAYLOAD_VALIDATION_FAILED',
         category: 'validation',
         missing_fields: missingFields,
+        invalid_fields: invalidDetails.map(({ field }) => field),
+        details,
       },
     };
   }
@@ -275,6 +298,47 @@ function createAuditEvent({ command, type, data }) {
     type,
     timestamp: new Date().toISOString(),
     data,
+  };
+}
+
+function createPreconditionFailure(details) {
+  return {
+    statusCode: 409,
+    body: {
+      error: {
+        code: 'PRECONDITION_FAILED',
+        category: 'precondition',
+        details,
+      },
+      mutation_applied: false,
+      event_appended: false,
+    },
+  };
+}
+
+function buildImportedDocumentId(sessionId, blobId, documents) {
+  const baseDocumentId = `${sessionId}:${blobId}`;
+  if (!documents.has(baseDocumentId)) {
+    return baseDocumentId;
+  }
+
+  let reimportSequence = 2;
+  let candidateId = `${baseDocumentId}:reimport-${reimportSequence}`;
+  while (documents.has(candidateId)) {
+    reimportSequence += 1;
+    candidateId = `${baseDocumentId}:reimport-${reimportSequence}`;
+  }
+
+  return candidateId;
+}
+
+function buildDuplicateCorrelation(sessionId, documentId, duplicateOfDocumentId) {
+  const [leftDocumentId, rightDocumentId] = [documentId, duplicateOfDocumentId].sort();
+  const pairKey = `${leftDocumentId}::${rightDocumentId}`;
+  const deterministicKey = `${sessionId}:${leftDocumentId}:${rightDocumentId}`;
+  return {
+    pairKey,
+    deterministicKey,
   };
 }
 
@@ -300,7 +364,7 @@ export function createCommandDispatcher() {
     documents: new Map(),
     duplicates: new Map(),
     auditLog: [],
-    commandLog: new Set(),
+    commandLog: new Map(),
   };
 
   return {
@@ -403,7 +467,10 @@ export function createCommandDispatcher() {
           };
         });
 
-        store.commandLog.add(commandEnvelope.command_id);
+        store.commandLog.set(commandEnvelope.command_id, {
+          type: 'CreateSession',
+          session_id: mutationResult.session.id,
+        });
 
         return {
           statusCode: 202,
@@ -479,7 +546,10 @@ export function createCommandDispatcher() {
           };
         });
 
-        store.commandLog.add(commandEnvelope.command_id);
+        store.commandLog.set(commandEnvelope.command_id, {
+          type: 'PinSession',
+          session_id: mutationResult.session.id,
+        });
 
         return {
           statusCode: 202,
@@ -531,8 +601,9 @@ export function createCommandDispatcher() {
             });
 
             const importedDocuments = commandEnvelope.payload.blob_ids.map((blobId) => {
+              const documentId = buildImportedDocumentId(sessionId, blobId, documents);
               const document = {
-                document_id: `${sessionId}:${blobId}`,
+                document_id: documentId,
                 session_id: sessionId,
                 blob_id: blobId,
                 metadata: {
@@ -555,6 +626,7 @@ export function createCommandDispatcher() {
               data: {
                 session_id: sessionId,
                 blob_ids: commandEnvelope.payload.blob_ids,
+                document_ids: importedDocuments.map((document) => document.document_id),
                 metadata: {
                   source: commandEnvelope.payload.metadata.source,
                   file_name: commandEnvelope.payload.metadata.file_name,
@@ -574,7 +646,12 @@ export function createCommandDispatcher() {
           },
         );
 
-        store.commandLog.add(commandEnvelope.command_id);
+        store.commandLog.set(commandEnvelope.command_id, {
+          type: 'ImportDocument',
+          session_id: commandEnvelope.payload.session_id,
+          document_ids: mutationResult.documents.map((document) => document.document_id),
+          blob_ids: [...commandEnvelope.payload.blob_ids],
+        });
 
         return {
           statusCode: 202,
@@ -605,37 +682,87 @@ export function createCommandDispatcher() {
           };
         }
 
+        const sessionId = commandEnvelope.payload.session_id;
+        const documentId = commandEnvelope.payload.document_id;
+        const duplicateOfDocumentId = commandEnvelope.payload.duplicate_of_document_id;
+        const sourceImportCommandId = commandEnvelope.payload.correlation.source_import_command_id;
+        const sourceImportCommand = store.commandLog.get(sourceImportCommandId);
+        if (!sourceImportCommand || sourceImportCommand.type !== 'ImportDocument') {
+          return createPreconditionFailure([
+            {
+              field: 'correlation.source_import_command_id',
+              reason: 'source_import_command_not_found',
+            },
+          ]);
+        }
+
+        if (sourceImportCommand.session_id !== sessionId) {
+          return createPreconditionFailure([
+            {
+              field: 'session_id',
+              reason: 'source_import_command_session_mismatch',
+            },
+          ]);
+        }
+
+        const document = store.documents.get(documentId);
+        const duplicateOfDocument = store.documents.get(duplicateOfDocumentId);
+        const documentDetails = [];
+        if (!document || document.session_id !== sessionId) {
+          documentDetails.push({
+            field: 'document_id',
+            reason: 'document_not_found',
+          });
+        }
+        if (!duplicateOfDocument || duplicateOfDocument.session_id !== sessionId) {
+          documentDetails.push({
+            field: 'duplicate_of_document_id',
+            reason: 'document_not_found',
+          });
+        }
+        if (documentDetails.length > 0) {
+          return createPreconditionFailure(documentDetails);
+        }
+
+        const commandDocumentIds = Array.isArray(sourceImportCommand.document_ids)
+          ? sourceImportCommand.document_ids
+          : [];
+        const linksToSourceContext =
+          commandDocumentIds.includes(documentId) ||
+          commandDocumentIds.includes(duplicateOfDocumentId);
+        if (!linksToSourceContext) {
+          return createPreconditionFailure([
+            {
+              field: 'correlation.source_import_command_id',
+              reason: 'source_import_command_lineage_mismatch',
+            },
+          ]);
+        }
+
+        const existingSession = store.sessions.get(sessionId);
+        if (!existingSession) {
+          return createPreconditionFailure([
+            {
+              field: 'session_id',
+              reason: 'session_not_found',
+            },
+          ]);
+        }
+
         const mutationResult = runAtomicMutation(
           store,
           ({ sessions, duplicates, auditLog, transaction }) => {
             const timestamp = new Date().toISOString();
-            const sessionId = commandEnvelope.payload.session_id;
-            const documentId = commandEnvelope.payload.document_id;
-            const duplicateOfDocumentId = commandEnvelope.payload.duplicate_of_document_id;
-            const deterministicKey = `${sessionId}:${documentId}:${duplicateOfDocumentId}`;
-            const pairKey =
-              typeof commandEnvelope.payload.correlation.pair_key === 'string' &&
-              commandEnvelope.payload.correlation.pair_key.trim().length > 0
-                ? commandEnvelope.payload.correlation.pair_key
-                : [documentId, duplicateOfDocumentId].sort().join('::');
+            const { pairKey, deterministicKey } = buildDuplicateCorrelation(
+              sessionId,
+              documentId,
+              duplicateOfDocumentId,
+            );
 
-            const existingSession = sessions.get(sessionId);
-            if (!existingSession) {
-              sessions.set(sessionId, {
-                id: sessionId,
-                project_id: 'import-session',
-                schema_id: 'import-schema',
-                status: 'active',
-                pinned: false,
-                created_at: timestamp,
-                updated_at: timestamp,
-              });
-            } else {
-              sessions.set(sessionId, {
-                ...existingSession,
-                updated_at: timestamp,
-              });
-            }
+            sessions.set(sessionId, {
+              ...existingSession,
+              updated_at: timestamp,
+            });
 
             const duplicateRecord = {
               session_id: sessionId,
@@ -680,7 +807,11 @@ export function createCommandDispatcher() {
           },
         );
 
-        store.commandLog.add(commandEnvelope.command_id);
+        store.commandLog.set(commandEnvelope.command_id, {
+          type: 'ConfirmDuplicate',
+          session_id: sessionId,
+          deterministic_key: mutationResult.duplicate.correlation.deterministic_key,
+        });
 
         return {
           statusCode: 202,

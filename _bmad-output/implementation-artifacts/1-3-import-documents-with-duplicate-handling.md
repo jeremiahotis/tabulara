@@ -1,6 +1,6 @@
 # Story 1.3: Import Documents with Duplicate Handling
 
-Status: review
+Status: done
 
 ## Story
 
@@ -55,6 +55,8 @@ GPT-5 Codex
 - `npm run test:api -- --project=api tests/api/story-1-3-import-documents-with-duplicate-handling.spec.ts --grep "\[AC1\]"` (red -> green)
 - `npm run test:api -- --project=api tests/api/story-1-3-import-documents-with-duplicate-handling.spec.ts --grep "\[AC2\]"` (red -> green)
 - `npm run test:e2e -- --project=chromium-e2e tests/e2e/story-1-3-import-documents-with-duplicate-handling.spec.ts` (red -> green)
+- `npm run test:api -- --project=api tests/api/story-1-3-import-documents-with-duplicate-handling.spec.ts tests/api/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts` (review-remediation pass)
+- `npm run test:e2e -- --project=chromium-e2e tests/e2e/story-1-3-import-documents-with-duplicate-handling.spec.ts tests/e2e/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts` (review-remediation pass)
 - `npm run test:api`
 - `npm run test:e2e`
 ### Completion Notes List
@@ -65,6 +67,11 @@ GPT-5 Codex
 - Updated `src/App.tsx` to dispatch Story 1.3 command envelopes (`ImportDocument`, `ConfirmDuplicate`) and render all required traceability surfaces (`document-last-imported-blob-id`, duplicate linkage fields, and latest audit event metadata).
 - Activated Story 1.3 API and E2E ATDD specs by removing `test.skip()` and verified end-to-end acceptance behavior.
 - Aligned Story 1.3 automation specs to post-implementation expectations (acceptance flows rather than unsupported-command rejections) to keep regression coverage consistent with implemented command support.
+- Hardened `ConfirmDuplicate` preconditions so duplicate confirmation now rejects fabricated lineage (`source_import_command_id` must reference an `ImportDocument` command in the same session and linked document context).
+- Added payload validation that rejects self-duplicate submissions (`document_id === duplicate_of_document_id`) with deterministic validation errors.
+- Canonicalized duplicate correlation derivation so `deterministic_key` and `pair_key` are direction-independent across reversed document ordering.
+- Prevented re-import overwrite by generating unique document IDs for repeated blob imports in the same session (`:reimport-N` suffix), preserving prior import traceability.
+- Expanded Story 1.3 API coverage with AC2 negative-path assertions (missing source import command, self-duplicate, and missing referenced document) and updated API/E2E automation flows to seed valid import context before duplicate confirmation.
 
 ### File List
 
@@ -76,7 +83,10 @@ GPT-5 Codex
 - `tests/api/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts`
 - `tests/e2e/story-1-3-import-documents-with-duplicate-handling.spec.ts`
 - `tests/e2e/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts`
+- `tests/support/fixtures/document-import-command-data.ts`
+- `tests/support/fixtures/factories/document-import-command-factory.ts`
 
 ## Change Log
 
 - 2026-02-19: Implemented `ImportDocument` and `ConfirmDuplicate` command handlers with append-only audit events and deterministic duplicate correlation; added Story 1.3 UI command wiring/traceability surfaces; enabled and passed Story 1.3 API/E2E acceptance + automation coverage.
+- 2026-02-19: Resolved Story 1.3 code-review findings by enforcing duplicate lineage/session preconditions, rejecting self-duplicates, canonicalizing duplicate deterministic keys, preserving re-import traceability (no overwrite), and adding AC2 negative-path regression coverage.

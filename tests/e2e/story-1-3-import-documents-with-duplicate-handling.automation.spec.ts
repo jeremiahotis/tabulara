@@ -50,7 +50,7 @@ test.describe('Story 1.3 E2E automation coverage', () => {
     '[P1][AC2] should surface deterministic duplicate acceptance feedback when ConfirmDuplicate is dispatched from the shell',
     { annotation: [{ type: 'skipNetworkMonitoring' }] },
     async ({ page }) => {
-      const dispatchResponse = page.waitForResponse(
+      const importDispatchResponse = page.waitForResponse(
         (response) =>
           response.url().includes('/api/v1/commands/dispatch') &&
           response.request().method() === 'POST' &&
@@ -58,7 +58,37 @@ test.describe('Story 1.3 E2E automation coverage', () => {
       );
 
       await page.goto('/');
+      await page.getByTestId('command-type-input').fill('ImportDocument');
+      await page.getByTestId('import-session-id-input').fill('session-import-auto-dup');
+      await page.getByTestId('import-blob-ids-input').fill('blob-auto-a,blob-auto-b');
+      await page.getByTestId('command-submit-button').click();
+
+      const importResponse = await importDispatchResponse;
+      expect(importResponse.status()).toBe(202);
+      const importBody = (await importResponse.json()) as {
+        accepted: boolean;
+        command_id: string;
+      };
+      expect(importBody.accepted).toBe(true);
+
+      const dispatchResponse = page.waitForResponse(
+        (response) =>
+          response.url().includes('/api/v1/commands/dispatch') &&
+          response.request().method() === 'POST' &&
+          response.status() === 202,
+      );
+
       await page.getByTestId('command-type-input').fill('ConfirmDuplicate');
+      await page.getByTestId('duplicate-session-id-input').fill('session-import-auto-dup');
+      await page
+        .getByTestId('duplicate-document-id-input')
+        .fill('session-import-auto-dup:blob-auto-b');
+      await page
+        .getByTestId('duplicate-of-document-id-input')
+        .fill('session-import-auto-dup:blob-auto-a');
+      await page
+        .getByTestId('duplicate-source-command-id-input')
+        .fill(importBody.command_id);
       await page.getByTestId('command-submit-button').click();
 
       const response = await dispatchResponse;

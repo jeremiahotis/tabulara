@@ -91,6 +91,7 @@ export function createConfirmDuplicateCommandEnvelope(
   const sessionId = options.payload?.session_id ?? faker.string.uuid();
   const documentId = options.payload?.document_id ?? faker.string.uuid();
   const duplicateOfDocumentId = options.payload?.duplicate_of_document_id ?? faker.string.uuid();
+  const [leftDocumentId, rightDocumentId] = [documentId, duplicateOfDocumentId].sort();
 
   return {
     command_id: options.commandId ?? faker.string.uuid(),
@@ -102,8 +103,8 @@ export function createConfirmDuplicateCommandEnvelope(
       document_id: documentId,
       duplicate_of_document_id: duplicateOfDocumentId,
       correlation: {
-        pair_key: [documentId, duplicateOfDocumentId].sort().join('::'),
-        deterministic_key: `${sessionId}:${documentId}:${duplicateOfDocumentId}`,
+        pair_key: `${leftDocumentId}::${rightDocumentId}`,
+        deterministic_key: `${sessionId}:${leftDocumentId}:${rightDocumentId}`,
         source_import_command_id: faker.string.uuid(),
         detector: 'hash',
         ...options.payload?.correlation,

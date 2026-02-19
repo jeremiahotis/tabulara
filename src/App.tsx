@@ -25,6 +25,7 @@ type DispatchEvent = {
 
 type DispatchAcceptedResponse = {
   accepted: boolean;
+  command_id?: string;
   mutation_applied?: boolean;
   event_appended?: boolean;
   session?: {
@@ -32,6 +33,8 @@ type DispatchAcceptedResponse = {
   };
   documents?: Array<{
     blob_id?: string;
+    document_id?: string;
+    import_command_id?: string;
   }>;
   duplicate?: {
     state?: string;
@@ -100,6 +103,8 @@ export function App() {
   const [duplicateOfDocumentId, setDuplicateOfDocumentId] = useState('');
   const [duplicateSourceCommandId, setDuplicateSourceCommandId] = useState('');
   const [documentLastImportedBlobId, setDocumentLastImportedBlobId] = useState('');
+  const [lastImportedDocumentIds, setLastImportedDocumentIds] = useState<string[]>([]);
+  const [lastImportCommandId, setLastImportCommandId] = useState('');
   const [duplicateStateLatest, setDuplicateStateLatest] = useState('');
   const [duplicateOfDocumentIdLatest, setDuplicateOfDocumentIdLatest] = useState('');
   const [duplicateCorrelationKeyLatest, setDuplicateCorrelationKeyLatest] = useState('');
@@ -182,6 +187,15 @@ export function App() {
       const latestImportedDocument = acceptedBody.documents?.[0];
       if (latestImportedDocument?.blob_id) {
         setDocumentLastImportedBlobId(latestImportedDocument.blob_id);
+      }
+      const importedDocumentIds = (acceptedBody.documents ?? [])
+        .map((document) => document.document_id ?? '')
+        .filter((documentId) => documentId.length > 0);
+      if (importedDocumentIds.length > 0) {
+        setLastImportedDocumentIds(importedDocumentIds);
+        if (typeof acceptedBody.command_id === 'string' && acceptedBody.command_id.trim().length > 0) {
+          setLastImportCommandId(acceptedBody.command_id);
+        }
       }
 
       if (acceptedBody.duplicate) {
@@ -279,16 +293,21 @@ export function App() {
 
     if (normalizedType === 'ConfirmDuplicate') {
       const resolvedSessionId = duplicateSessionId.trim() || lastSessionId || `session-${crypto.randomUUID()}`;
-      const resolvedDocumentId = duplicateDocumentId.trim() || 'doc-duplicate';
-      const resolvedDuplicateOfId = duplicateOfDocumentId.trim() || 'doc-original';
-      const resolvedSourceCommandId = duplicateSourceCommandId.trim() || crypto.randomUUID();
+      const fallbackDocumentId = lastImportedDocumentIds[0] ?? `${resolvedSessionId}:doc-duplicate`;
+      const fallbackDuplicateOfId =
+        lastImportedDocumentIds[1] ?? lastImportedDocumentIds[0] ?? `${resolvedSessionId}:doc-original`;
+      const resolvedDocumentId = duplicateDocumentId.trim() || fallbackDocumentId;
+      const resolvedDuplicateOfId = duplicateOfDocumentId.trim() || fallbackDuplicateOfId;
+      const [leftDocumentId, rightDocumentId] = [resolvedDocumentId, resolvedDuplicateOfId].sort();
+      const resolvedSourceCommandId =
+        duplicateSourceCommandId.trim() || lastImportCommandId || crypto.randomUUID();
       const duplicateEnvelope = buildCommandEnvelope('ConfirmDuplicate', {
         session_id: resolvedSessionId,
         document_id: resolvedDocumentId,
         duplicate_of_document_id: resolvedDuplicateOfId,
         correlation: {
-          pair_key: [resolvedDocumentId, resolvedDuplicateOfId].sort().join('::'),
-          deterministic_key: `${resolvedSessionId}:${resolvedDocumentId}:${resolvedDuplicateOfId}`,
+          pair_key: `${leftDocumentId}::${rightDocumentId}`,
+          deterministic_key: `${resolvedSessionId}:${leftDocumentId}:${rightDocumentId}`,
           source_import_command_id: resolvedSourceCommandId,
           detector: 'hash',
         },
@@ -314,6 +333,8 @@ export function App() {
     importFileName,
     importMetadataSource,
     importSessionId,
+    lastImportCommandId,
+    lastImportedDocumentIds,
     lastSessionId,
   ]);
 

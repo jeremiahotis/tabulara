@@ -82,13 +82,45 @@ test.describe('Story 1.3 API automation coverage', () => {
   test('[P0][AC2] should accept ConfirmDuplicate and append DuplicateMarked with deterministic correlation fields', async ({
     apiRequest,
   }) => {
+    const importCommand = createImportDocumentCommandEnvelope({
+      payload: {
+        session_id: 'session-duplicate-p0',
+        blob_ids: ['blob-original-001', 'blob-duplicate-001'],
+        metadata: {
+          source: 'import',
+          file_name: 'invoice-dup-seed.pdf',
+          mime_type: 'application/pdf',
+          file_hash: 'c'.repeat(64),
+        },
+      },
+    });
+    const importResult = await apiRequest<{
+      accepted: boolean;
+      command_id: string;
+      documents: Array<{
+        document_id: string;
+      }>;
+    }>({
+      method: 'POST',
+      path: '/api/v1/commands/dispatch',
+      body: importCommand,
+    });
+    expect(importResult.status).toBe(202);
+    const importedDocumentIds = (importResult.body.documents ?? [])
+      .map((document) => document.document_id)
+      .filter((documentId) => documentId.length > 0);
+    expect(importedDocumentIds.length).toBeGreaterThanOrEqual(2);
+    const [documentId, duplicateOfDocumentId] = importedDocumentIds;
+
     const command = createConfirmDuplicateCommandEnvelope({
       payload: {
         session_id: 'session-duplicate-p0',
-        document_id: 'doc-duplicate-001',
-        duplicate_of_document_id: 'doc-original-001',
+        document_id: documentId,
+        duplicate_of_document_id: duplicateOfDocumentId,
       },
     });
+    command.payload.correlation.source_import_command_id = importCommand.command_id;
+    const [leftDocumentId, rightDocumentId] = [documentId, duplicateOfDocumentId].sort();
 
     const { status, body } = await apiRequest<{
       accepted: boolean;
@@ -128,9 +160,9 @@ test.describe('Story 1.3 API automation coverage', () => {
       },
     });
     expect(body.duplicate.correlation).toMatchObject({
-      pair_key: command.payload.correlation.pair_key,
+      pair_key: `${leftDocumentId}::${rightDocumentId}`,
       source_import_command_id: command.payload.correlation.source_import_command_id,
-      deterministic_key: `${command.payload.session_id}:${command.payload.document_id}:${command.payload.duplicate_of_document_id}`,
+      deterministic_key: `${command.payload.session_id}:${leftDocumentId}:${rightDocumentId}`,
     });
     expect(body.events).toEqual(
       expect.arrayContaining([
@@ -177,7 +209,7 @@ test.describe('Story 1.3 API automation coverage', () => {
 
     expect(command.type).toBe('ConfirmDuplicate');
     expect(command.payload.correlation).toMatchObject({
-      deterministic_key: 'session-dup-p1:doc-z:doc-a',
+      deterministic_key: 'session-dup-p1:doc-a:doc-z',
       pair_key: 'doc-a::doc-z',
       detector: 'hash',
     });
