@@ -9,4 +9,5 @@ export const story15RedPhaseData = {
 export const story15ExpectedErrorCodes = {
   extractionFailed: 'EXTRACTION_FAILED',
   extractionFailureReason: 'extractor_runtime_error',
+  extractionRollbackReason: 'transaction_rolled_back',
 };

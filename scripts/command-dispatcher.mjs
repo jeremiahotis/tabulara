@@ -514,6 +514,29 @@ function buildExtractionOutputs(commandEnvelope) {
   };
 }
 
+const EXTRACTION_READY_LIFECYCLE_STATES = new Set(['preprocessed', 'reprocessed']);
+
+function createExtractionFailure(reason) {
+  return {
+    statusCode: 409,
+    body: {
+      error: {
+        code: 'EXTRACTION_FAILED',
+        category: 'pipeline',
+        details: [
+          {
+            field: 'pipeline',
+            reason,
+          },
+        ],
+        payload_stability: 'deterministic',
+      },
+      mutation_applied: false,
+      event_appended: false,
+    },
+  };
+}
+
 function runAtomicMutation(store, mutate) {
   const sessions = new Map(store.sessions);
   const documents = new Map(store.documents);
@@ -1250,64 +1273,83 @@ export function createCommandDispatcher() {
           };
         }
 
-        if (commandEnvelope.payload.force_fail_stage === 'extractor-runtime') {
-          return {
-            statusCode: 409,
-            body: {
-              error: {
-                code: 'EXTRACTION_FAILED',
-                category: 'pipeline',
-                details: [
-                  {
-                    field: 'pipeline',
-                    reason: 'extractor_runtime_error',
-                  },
-                ],
-                payload_stability: 'deterministic',
-              },
-              mutation_applied: false,
-              event_appended: false,
-            },
-          };
-        }
-
         const sessionId = commandEnvelope.payload.session_id;
         const documentId = commandEnvelope.payload.document_id;
+        const existingSession = store.sessions.get(sessionId);
+        if (!existingSession) {
+          return createPreconditionFailure([
+            {
+              field: 'session_id',
+              reason: 'session_not_found',
+            },
+          ]);
+        }
+
+        const existingDocument = store.documents.get(documentId);
+        if (!existingDocument || existingDocument.session_id !== sessionId) {
+          return createPreconditionFailure([
+            {
+              field: 'document_id',
+              reason: 'document_not_found',
+            },
+          ]);
+        }
+
+        const currentLifecycleState = existingDocument.lifecycle_state ?? 'imported';
+        if (!EXTRACTION_READY_LIFECYCLE_STATES.has(currentLifecycleState)) {
+          return createPreconditionFailure([
+            {
+              field: 'lifecycle_state',
+              reason: 'document_not_preprocess_ready',
+            },
+          ]);
+        }
+
+        if (commandEnvelope.payload.source_state !== 'preprocess-ready') {
+          return createPreconditionFailure([
+            {
+              field: 'source_state',
+              reason: 'source_state_mismatch',
+            },
+          ]);
+        }
+
+        if (commandEnvelope.payload.force_fail_stage === 'extractor-runtime') {
+          return createExtractionFailure('extractor_runtime_error');
+        }
+
         const extractionOutputs = buildExtractionOutputs(commandEnvelope);
 
         let mutationResult;
         try {
           mutationResult = runAtomicMutation(
             store,
-            ({ sessions, extractionOutputs: extractionOutputStore, auditLog, transaction }) => {
+            ({
+              sessions,
+              documents,
+              extractionOutputs: extractionOutputStore,
+              auditLog,
+              transaction,
+            }) => {
               if (commandEnvelope.payload.force_fail_stage === 'persistence-before-commit') {
                 throw new Error('transaction_rolled_back');
               }
 
               const timestamp = new Date().toISOString();
-              const existingSession = sessions.get(sessionId);
-              if (existingSession) {
-                sessions.set(sessionId, {
-                  ...existingSession,
-                  updated_at: timestamp,
-                });
-              } else {
-                sessions.set(sessionId, {
-                  id: sessionId,
-                  project_id: 'extraction-session',
-                  schema_id: 'extraction-schema',
-                  status: 'active',
-                  pinned: false,
-                  created_at: timestamp,
-                  updated_at: timestamp,
-                });
-              }
+              sessions.set(sessionId, {
+                ...existingSession,
+                updated_at: timestamp,
+              });
+              documents.set(documentId, {
+                ...existingDocument,
+                updated_at: timestamp,
+              });
 
               extractionOutputStore.set(documentId, {
                 session_id: sessionId,
                 document_id: documentId,
                 extraction_profile: commandEnvelope.payload.extraction_profile,
-                source_state: commandEnvelope.payload.source_state,
+                source_state: 'preprocess-ready',
                 generated_by_command_id: commandEnvelope.command_id,
                 outputs: extractionOutputs,
                 generated_at: timestamp,
@@ -1342,12 +1384,7 @@ export function createCommandDispatcher() {
             },
           );
         } catch {
-          return createPreconditionFailure([
-            {
-              field: 'run_extraction',
-              reason: 'transaction_rolled_back',
-            },
-          ]);
+          return createExtractionFailure('transaction_rolled_back');
         }
 
         store.commandLog.set(commandEnvelope.command_id, {
