@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "subprocess": "api-tests",
+  "tests": [
+    {
+      "file": "tests/api/story-2-0a-latency-budget-smoke-harness.automation.spec.ts",
+      "content": "import { test, expect } from '../support/fixtures';\nimport { story20aRedPhaseData } from '../support/fixtures/story-2-0a-red-phase-data';\n\ntest.describe('Story 2.0a API automation coverage', () => {\n  async function runLatencySmoke(\n    apiRequest: <TResponseBody>(request: {\n      method: 'POST';\n      path: string;\n      body: unknown;\n    }) => Promise<{ status: number; body: TResponseBody }>,\n    thresholds: { highlight_ms_max: number; queue_advance_ms_max: number },\n  ) {\n    return apiRequest<{ error: string }>({\n      method: 'POST',\n      path: '/api/v1/perf/latency-smoke/run',\n      body: {\n        scenario_seed: story20aRedPhaseData.scenarioSeed,\n        scenarios: story20aRedPhaseData.scenarios,\n        thresholds,\n      },\n    });\n  }\n\n  test('[P0][AC1] should keep latency smoke run endpoint unavailable before implementation', async ({ apiRequest }) => {\n    const { status, body } = await runLatencySmoke(apiRequest, {\n      highlight_ms_max: story20aRedPhaseData.thresholds.highlightP95MsMax,\n      queue_advance_ms_max: story20aRedPhaseData.thresholds.queueAdvanceP95MsMax,\n    });\n\n    expect(status).toBe(404);\n    expect(body).toEqual({ error: 'Not found' });\n  });\n\n  test('[P0][AC2] should return deterministic machine-readable not-found output across repeated latency smoke invocations', async ({\n    apiRequest,\n  }) => {\n    const first = await runLatencySmoke(apiRequest, {\n      highlight_ms_max: 1,\n      queue_advance_ms_max: 1,\n    });\n    const second = await runLatencySmoke(apiRequest, {\n      highlight_ms_max: 1,\n      queue_advance_ms_max: 1,\n    });\n\n    expect(first.status).toBe(404);\n    expect(second.status).toBe(404);\n    expect(first.body).toEqual({ error: 'Not found' });\n    expect(second.body).toEqual({ error: 'Not found' });\n  });\n\n  test('[P1][AC3] should keep latency smoke artifact endpoint unavailable before implementation', async ({ apiRequest }) => {\n    const artifact = await apiRequest<{ error: string }>({\n      method: 'GET',\n      path: '/api/v1/perf/latency-smoke/runs/fake-run-id/artifact',\n    });\n\n    expect(artifact.status).toBe(404);\n    expect(artifact.body).toEqual({ error: 'Not found' });\n  });\n\n  test('[P1][AC1] should keep non-deterministic scenario ordering guard unimplemented until latency endpoint exists', async ({\n    apiRequest,\n  }) => {\n    const response = await apiRequest<{ error: string }>({\n      method: 'POST',\n      path: '/api/v1/perf/latency-smoke/run',\n      body: {\n        scenario_seed: story20aRedPhaseData.scenarioSeed,\n        scenarios: [\n          ...story20aRedPhaseData.scenarios,\n          { id: 'dynamic-randomized-order', workflow: 'verification-evidence-highlight' },\n        ],\n        allow_random_order: true,\n      },\n    });\n\n    expect(response.status).toBe(404);\n    expect(response.body).toEqual({ error: 'Not found' });\n  });\n});\n",
+      "description": "API automation for Story 2.0a latency smoke harness current-state guardrails",
+      "priority_coverage": {
+        "P0": 2,
+        "P1": 2,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "apiRequest",
+    "story20aRedPhaseData"
+  ],
+  "knowledge_fragments_used": [
+    "test-levels-framework",
+    "test-priorities-matrix",
+    "api-request",
+    "data-factories",
+    "test-quality"
+  ],
+  "test_count": 4,
+  "summary": "Generated 4 API tests for deterministic pre-implementation latency harness guardrails"
+}
