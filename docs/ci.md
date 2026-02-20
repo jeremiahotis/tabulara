@@ -4,7 +4,7 @@ This repository uses a dedicated test pipeline at:
 
 - `/Users/jeremiahotis/projects/tabulara/.github/workflows/test.yml`
 
-Current scope: Epic 1 delivery quality gates and regression stability.
+Current scope: Epic 2 quality gates, including status-integrity parity across local and CI execution.
 
 ## Trigger Strategy
 
@@ -15,14 +15,15 @@ Current scope: Epic 1 delivery quality gates and regression stability.
 
 ## Pipeline Stages
 
-1. `lint`
-2. `test` (4-way shard matrix, `fail-fast: false`)
-3. `burn-in` (10 iterations, PR + schedule only)
-4. `report` (summary + gate enforcement)
+1. `status-integrity`
+2. `lint`
+3. `test` (4-way shard matrix, `fail-fast: false`)
+4. `burn-in` (10 iterations, PR + schedule only)
+5. `report` (summary + gate enforcement)
 
 ## Quality Gates
 
-- P0: 100% of critical checks must pass (`lint` + `test` jobs)
+- P0: 100% of critical checks must pass (`status-integrity` + `lint` + `test` jobs)
 - P1: Burn-in must be stable when it runs (no flaky failures across iterations)
 - CI fails when any P0 gate fails or when burn-in reports a failure
 
@@ -43,6 +44,12 @@ Run the same flow locally:
 
 ```bash
 scripts/ci-local.sh
+```
+
+Run the shared status-integrity verifier directly:
+
+```bash
+npm run test:status-integrity
 ```
 
 Run with burn-in enabled:

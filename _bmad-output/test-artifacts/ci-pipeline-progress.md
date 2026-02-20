@@ -1,7 +1,7 @@
 ---
 stepsCompleted: ['step-01-preflight', 'step-02-generate-pipeline', 'step-03-configure-quality-gates', 'step-04-validate-and-summary']
 lastStep: 'step-04-validate-and-summary'
-lastSaved: '2026-02-18T18:14:47Z'
+lastSaved: '2026-02-20T13:44:58Z'
 ---
 
 ## Step 1 - Preflight Checks
@@ -79,3 +79,42 @@ Decision: continue in update mode (non-destructive) and add dedicated test workf
   - `scripts/ci-local.sh` passed (all shard commands complete successfully)
   - `scripts/test-changed.sh` passed (falls back to baseline run when no changed tests)
   - `scripts/burn-in.sh 2` passed (`2/2`)
+
+## Epic 2 - CI Quality Gate Wiring (2026-02-20)
+
+### Step 1 - Preflight Checks
+
+- Git repository: present (`.git/` found)
+- Git remote: `origin https://github.com/jeremiahotis/tabulara.git`
+- Test framework config: `playwright.config.ts` detected
+- Framework dependency: `@playwright/test` present in `package.json`
+- Local baseline test status: `npm run test:e2e` passed (`19 passed`, `7 skipped`)
+- Existing CI config: `.github/workflows/test.yml` present
+- CI platform decision: GitHub Actions (update mode)
+- Node version: `.nvmrc` = `24`
+- Package manager strategy: npm + `package-lock.json`
+
+### Step 2 - Generate Pipeline Updates
+
+- Updated `/Users/jeremiahotis/projects/tabulara/.github/workflows/test.yml` in-place
+- Added dedicated `status-integrity` job before lint/test execution
+- Updated shard test dependency chain to require both `status-integrity` and `lint`
+- Kept required stages active: `lint`, `test` (4-way shard), `burn-in`, `report`
+- Removed Playwright browser cache restore steps; browser install remains explicit per run
+
+### Step 3 - Configure Quality Gates & Notifications
+
+- Added shared verifier command: `npm run test:status-integrity`
+- Added verifier implementation: `/Users/jeremiahotis/projects/tabulara/scripts/verify-status-integrity.mjs`
+- Wired local parity runner (`scripts/ci-local.sh`) to execute the same verifier command used by CI
+- Updated report gate policy:
+  - P0 gate now includes status-integrity + lint + shard tests
+  - Slack failure condition now includes status-integrity failures
+
+### Step 4 - Validation & Summary
+
+- `npm run test:status-integrity` passed (`STATUS_INTEGRITY_OK checked=27 mismatches=0`)
+- `scripts/ci-local.sh` passed with status gate + all 4 shards
+- CI docs updated for Epic 2 scope:
+  - `/Users/jeremiahotis/projects/tabulara/docs/ci.md`
+- Completion status: Epic 2 CI gate wiring is ready for branch push + PR validation run on hosted Actions
