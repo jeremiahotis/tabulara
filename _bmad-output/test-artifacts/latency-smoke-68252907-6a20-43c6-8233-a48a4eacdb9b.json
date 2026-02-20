@@ -1,0 +1,90 @@
+{
+  "output_path": "/Users/jeremiahotis/projects/tabulara/_bmad-output/test-artifacts/latency-smoke-68252907-6a20-43c6-8233-a48a4eacdb9b.json",
+  "metadata": {
+    "run_id": "68252907-6a20-43c6-8233-a48a4eacdb9b",
+    "scenario_seed": "latency-budget-smoke-v1",
+    "scenario_count": 2,
+    "git_commit": "29481d4",
+    "harness_version": "0.1.1-rc1",
+    "started_at": "2026-02-20T14:42:23.917Z",
+    "completed_at": "2026-02-20T14:42:23.918Z"
+  },
+  "percentiles": {
+    "highlight_latency_ms": {
+      "p50": 60,
+      "p95": 81,
+      "p99": 81
+    },
+    "queue_advance_latency_ms": {
+      "p50": 97,
+      "p95": 131,
+      "p99": 131
+    }
+  },
+  "thresholds": {
+    "highlight_ms_max": 1,
+    "queue_advance_ms_max": 1
+  },
+  "scenarios": [
+    {
+      "scenario_id": "baseline-happy-path",
+      "workflow": "verification-evidence-highlight",
+      "queue_depth": 4,
+      "highlight_latency_ms": {
+        "p50": 53,
+        "p95": 60,
+        "p99": 60
+      },
+      "queue_advance_latency_ms": {
+        "p50": 82,
+        "p95": 96,
+        "p99": 97
+      }
+    },
+    {
+      "scenario_id": "queue-pressure-path",
+      "workflow": "verification-queue-advance",
+      "queue_depth": 20,
+      "highlight_latency_ms": {
+        "p50": 75,
+        "p95": 81,
+        "p99": 81
+      },
+      "queue_advance_latency_ms": {
+        "p50": 120,
+        "p95": 131,
+        "p99": 131
+      }
+    }
+  ],
+  "failures": [
+    {
+      "scenario": "baseline-happy-path",
+      "metric": "highlight_latency_ms",
+      "observed_percentile": "p95",
+      "observed_ms": 60,
+      "threshold_ms": 1
+    },
+    {
+      "scenario": "baseline-happy-path",
+      "metric": "queue_advance_latency_ms",
+      "observed_percentile": "p95",
+      "observed_ms": 96,
+      "threshold_ms": 1
+    },
+    {
+      "scenario": "queue-pressure-path",
+      "metric": "highlight_latency_ms",
+      "observed_percentile": "p95",
+      "observed_ms": 81,
+      "threshold_ms": 1
+    },
+    {
+      "scenario": "queue-pressure-path",
+      "metric": "queue_advance_latency_ms",
+      "observed_percentile": "p95",
+      "observed_ms": 131,
+      "threshold_ms": 1
+    }
+  ]
+}

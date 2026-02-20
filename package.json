@@ -17,6 +17,7 @@
     "test:api": "env -u NO_COLOR playwright test --project=api",
     "test:api:p0": "env -u NO_COLOR playwright test --project=api --grep \"\\\\[P0\\\\]\"",
     "test:api:p1": "env -u NO_COLOR playwright test --project=api --grep \"\\\\[P0\\\\]|\\\\[P1\\\\]\"",
+    "quality:latency-smoke": "node scripts/latency-smoke-gate.mjs",
     "test:status-integrity": "node scripts/verify-status-integrity.mjs"
   },
   "devDependencies": {

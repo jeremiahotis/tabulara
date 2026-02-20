@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "subprocess": "e2e-tests",
+  "tests": [
+    {
+      "file": "tests/e2e/story-2-0a-latency-budget-smoke-harness.automation.spec.ts",
+      "content": "import { test, expect } from '../support/fixtures';\nimport { story20aRedPhaseData } from '../support/fixtures/story-2-0a-red-phase-data';\n\ntest.describe('Story 2.0a E2E automation coverage', () => {\n  test('[P1][AC1] should keep latency-smoke controls unavailable until harness UI is implemented', async ({ page }) => {\n    await page.goto('/quality/latency-smoke');\n\n    await expect(page.getByTestId('app-shell-ready')).toHaveText('ready');\n    await expect(page.getByTestId('latency-smoke-run-button')).toHaveCount(0);\n    await expect(page.getByTestId('latency-smoke-seed-input')).toHaveCount(0);\n  });\n\n  test('[P0][AC2] should return deterministic machine-readable not-found output for latency smoke run endpoint in browser context', async ({\n    page,\n  }) => {\n    const response = await page.request.post('/api/v1/perf/latency-smoke/run', {\n      data: {\n        scenario_seed: story20aRedPhaseData.scenarioSeed,\n        scenarios: story20aRedPhaseData.scenarios,\n        thresholds: {\n          highlight_ms_max: 1,\n          queue_advance_ms_max: 1,\n        },\n      },\n    });\n\n    expect(response.status()).toBe(404);\n    await expect(response.json()).resolves.toEqual({ error: 'Not found' });\n  });\n\n  test('[P1][AC3] should return deterministic not-found output for latency smoke artifact endpoint in browser context', async ({\n    page,\n  }) => {\n    const response = await page.request.get('/api/v1/perf/latency-smoke/runs/fake-run-id/artifact');\n\n    expect(response.status()).toBe(404);\n    await expect(response.json()).resolves.toEqual({ error: 'Not found' });\n  });\n});\n",
+      "description": "E2E automation for Story 2.0a latency smoke harness availability guardrails",
+      "priority_coverage": {
+        "P0": 1,
+        "P1": 2,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "pageRequest",
+    "shellReadySelectors"
+  ],
+  "knowledge_fragments_used": [
+    "test-levels-framework",
+    "test-priorities-matrix",
+    "selector-resilience",
+    "network-first",
+    "test-quality"
+  ],
+  "test_count": 3,
+  "summary": "Generated 3 E2E tests for deterministic unavailable-route and not-found endpoint behavior"
+}

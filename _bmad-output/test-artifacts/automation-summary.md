@@ -6,7 +6,7 @@ stepsCompleted:
   - step-03c-aggregate
   - step-04-validate-and-summarize
 lastStep: step-04-validate-and-summarize
-lastSaved: 2026-02-19T14-44-40Z
+lastSaved: 2026-02-20T14-36-55Z
 ---
 
 # Automation Summary - Story 1.1
@@ -598,3 +598,104 @@ Key assumptions and risks:
 Recommended next workflow:
 - `RV` (Review Tests) for structured quality review against TEA standards.
 - Optional: `TR` (Trace Requirements) to map Story 1.5 ACs across ATDD + automation and record gate status.
+
+## Story 2.0a - Step 1: Preflight and Context
+
+- Mode selected: **BMad-Integrated** (input: `_bmad-output/implementation-artifacts/2-0a-latency-budget-smoke-harness.md`).
+- Framework readiness verified:
+  - `playwright.config.ts` present and configured for API/E2E projects.
+  - `package.json` includes `@playwright/test` and `@seontechnologies/playwright-utils`.
+  - `tests/` structure includes `api`, `e2e`, and shared support fixtures/helpers.
+- Story and baseline artifacts loaded:
+  - Story: `_bmad-output/implementation-artifacts/2-0a-latency-budget-smoke-harness.md`
+  - Existing ATDD RED specs:
+    - `tests/api/story-2-0a-latency-budget-smoke-harness.spec.ts`
+    - `tests/e2e/story-2-0a-latency-budget-smoke-harness.spec.ts`
+  - Existing red-phase data fixture: `tests/support/fixtures/story-2-0a-red-phase-data.ts`
+- TEA config flags read:
+  - `tea_use_playwright_utils: true`
+  - `tea_browser_automation: auto`
+- Knowledge fragments applied:
+  - Core: `test-levels-framework`, `test-priorities-matrix`, `data-factories`, `selective-testing`, `ci-burn-in`, `test-quality`
+  - Playwright Utils + automation: `overview`, `api-request`, `network-recorder`, `auth-session`, `intercept-network-call`, `recurse`, `log`, `file-utils`, `burn-in`, `network-error-monitor`, `fixtures-composition`, `playwright-cli`
+- Browser automation tool availability:
+  - `playwright-cli`: **not installed** (`command not found`), so browser exploration was skipped and code/artifact analysis was used.
+
+## Story 2.0a - Step 2: Targets and Coverage Plan
+
+- Existing ATDD outputs were preserved as future-state contract specs and not duplicated.
+- Current implementation analysis:
+  - Local API exposes `/api/v1/health` and `/api/v1/commands/dispatch` only.
+  - Story 2.0a latency endpoints are currently unavailable (`404 Not found`).
+  - No latency harness UI route/controls currently exist in `src/App.tsx`.
+- Coverage strategy (`critical-paths`):
+  - API automation validates deterministic not-found guardrails for latency run/artifact endpoints.
+  - E2E automation validates unavailable latency controls and deterministic browser-context not-found endpoint behavior.
+- Priority mapping:
+  - P0: deterministic unavailable endpoint behavior for latency run path.
+  - P1: unavailable route/control guardrails and artifact endpoint not-found behavior.
+- Duplicate coverage control:
+  - ATDD RED retains future expected AC behavior.
+  - Automation suite guards current-state behavior until implementation lands.
+
+## Story 2.0a - Step 3: Parallel Subprocess Generation
+
+- Timestamp: `2026-02-20T14-36-55Z`
+- Subprocess A (API): `/tmp/tea-automate-api-tests-2026-02-20T14-36-55Z.json` ✅
+- Subprocess B (E2E): `/tmp/tea-automate-e2e-tests-2026-02-20T14-36-55Z.json` ✅
+- Execution model: **PARALLEL (API + E2E)**.
+- Both subprocess outputs validated as successful JSON with generated file payloads.
+
+## Story 2.0a - Step 3C: Aggregation and File Generation
+
+Generated files:
+- `tests/api/story-2-0a-latency-budget-smoke-harness.automation.spec.ts`
+- `tests/e2e/story-2-0a-latency-budget-smoke-harness.automation.spec.ts`
+
+Temporary artifacts persisted:
+- `_bmad-output/test-artifacts/temp/tea-automate-api-tests-2026-02-20T14-36-55Z.json`
+- `_bmad-output/test-artifacts/temp/tea-automate-e2e-tests-2026-02-20T14-36-55Z.json`
+- `_bmad-output/test-artifacts/temp/tea-automate-summary-2026-02-20T14-36-55Z.json`
+
+Aggregate summary:
+- Total tests: `7`
+  - API: `4` (1 file)
+  - E2E: `3` (1 file)
+- Priority coverage:
+  - P0: `3`
+  - P1: `4`
+  - P2: `0`
+  - P3: `0`
+- Fixture generation:
+  - No new fixture files required; existing support fixtures satisfy generated tests.
+
+## Story 2.0a - Step 4: Validation and Final Summary
+
+Checklist validation highlights:
+- Framework readiness: **PASS**
+- Coverage mapping (AC -> targets -> priorities): **PASS**
+- Test quality:
+  - priority tags present (`[P0]`, `[P1]`): **PASS**
+  - deterministic waits/no hard sleeps: **PASS**
+  - deterministic current-state endpoint guards: **PASS**
+- Fixtures/helpers:
+  - existing merged support fixtures reused cleanly: **PASS**
+- CLI session hygiene: **PASS** (CLI unavailable; no sessions opened)
+- Temp artifact location policy: **PASS** (artifacts persisted under `_bmad-output/test-artifacts/temp`)
+
+Execution results:
+- `npx playwright test tests/api/story-2-0a-latency-budget-smoke-harness.automation.spec.ts --project=api` -> **4 passed**
+- `npx playwright test tests/e2e/story-2-0a-latency-budget-smoke-harness.automation.spec.ts --project=chromium-e2e` -> **3 passed**
+
+Coverage summary (Story 2.0a automation run):
+- API: 4 tests (P0: 2, P1: 2)
+- E2E: 3 tests (P0: 1, P1: 2)
+- Total: 7 tests (P0: 3, P1: 4)
+
+Key assumptions and risks:
+- Assumption: Story 2.0a future-state acceptance behavior remains represented by ATDD RED specs until the latency harness is implemented.
+- Risk: Current automation asserts pre-implementation guardrails (404/unavailable controls), so expectations must be updated when latency endpoints/UI land.
+
+Recommended next workflow:
+- `RV` (Review Tests) after implementing Story 2.0a runtime/UI behavior.
+- Optional: `TR` (Trace Requirements) to map Story 2.0a ACs to ATDD + automation and set a quality gate decision.
