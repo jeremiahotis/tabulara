@@ -30,6 +30,10 @@ test.describe('Story 2.0a E2E automation coverage', () => {
       error: {
         code: 'LATENCY_THRESHOLD_EXCEEDED',
       },
+      threshold_evaluation: {
+        highlight_p95_within_budget: false,
+        queue_advance_p95_within_budget: false,
+      },
       process: {
         exit_code: 1,
       },

@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -173,6 +173,13 @@ function normalizeGitCommit(providedCommit) {
   }
 }
 
+function isValidRunId(runId) {
+  return (
+    typeof runId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(runId)
+  );
+}
+
 export function createLatencySmokeHarness({
   artifactDir = '_bmad-output/test-artifacts',
   harnessVersion = '0.1.1-rc1',
@@ -181,6 +188,7 @@ export function createLatencySmokeHarness({
   const normalizedArtifactDir = resolve(artifactDir);
   const resolvedGitCommit = normalizeGitCommit(gitCommit);
   const runs = new Map();
+  const artifactPathForRunId = (runId) => resolve(normalizedArtifactDir, `latency-smoke-${runId}.json`);
 
   function runLatencySmoke(input) {
     if (!isRecord(input)) {
@@ -243,6 +251,8 @@ export function createLatencySmokeHarness({
       : 150;
 
     const startedAt = new Date().toISOString();
+    const allHighlightSamples = [];
+    const allQueueSamples = [];
     const scenarioMetrics = normalizedScenarios.scenarios.map((scenario) => {
       const highlightSamples = computeScenarioSamples({
         seed: scenarioSeed,
@@ -256,6 +266,8 @@ export function createLatencySmokeHarness({
         metric: 'queue',
         sampleCount: 25,
       });
+      allHighlightSamples.push(...highlightSamples);
+      allQueueSamples.push(...queueSamples);
 
       return {
         scenario_id: scenario.id,
@@ -266,31 +278,24 @@ export function createLatencySmokeHarness({
       };
     });
 
-    const overallHighlight = calculatePercentiles(
-      scenarioMetrics.flatMap((scenario) => [
-        scenario.highlight_latency_ms.p50,
-        scenario.highlight_latency_ms.p95,
-        scenario.highlight_latency_ms.p99,
-      ]),
-    );
-    const overallQueue = calculatePercentiles(
-      scenarioMetrics.flatMap((scenario) => [
-        scenario.queue_advance_latency_ms.p50,
-        scenario.queue_advance_latency_ms.p95,
-        scenario.queue_advance_latency_ms.p99,
-      ]),
-    );
+    const overallHighlight = calculatePercentiles(allHighlightSamples);
+    const overallQueue = calculatePercentiles(allQueueSamples);
 
     const failures = summarizeFailures({
       scenarioMetrics,
       highlightThreshold,
       queueThreshold,
     });
+    const thresholdEvaluation = {
+      highlight_p95_within_budget: failures.every((failure) => failure.metric !== 'highlight_latency_ms'),
+      queue_advance_p95_within_budget: failures.every((failure) => failure.metric !== 'queue_advance_latency_ms'),
+    };
     const completedAt = new Date().toISOString();
     const runId = randomUUID();
+    const outputPath = artifactPathForRunId(runId);
 
     const artifactPayload = {
-      output_path: `${normalizedArtifactDir}/latency-smoke-${runId}.json`,
+      output_path: outputPath,
       metadata: {
         run_id: runId,
         scenario_seed: scenarioSeed,
@@ -327,10 +332,7 @@ export function createLatencySmokeHarness({
             highlight_latency_ms: overallHighlight,
             queue_advance_latency_ms: overallQueue,
           },
-          threshold_evaluation: {
-            highlight_p95_within_budget: overallHighlight.p95 <= highlightThreshold,
-            queue_advance_p95_within_budget: overallQueue.p95 <= queueThreshold,
-          },
+          threshold_evaluation: thresholdEvaluation,
           failures,
           error: {
             code: 'LATENCY_THRESHOLD_EXCEEDED',
@@ -350,16 +352,32 @@ export function createLatencySmokeHarness({
           highlight_latency_ms: overallHighlight,
           queue_advance_latency_ms: overallQueue,
         },
-        threshold_evaluation: {
-          highlight_p95_within_budget: true,
-          queue_advance_p95_within_budget: true,
-        },
+        threshold_evaluation: thresholdEvaluation,
       },
     };
   }
 
   function getArtifact(runId) {
-    return runs.get(runId) ?? null;
+    if (!isValidRunId(runId)) {
+      return null;
+    }
+
+    const inMemory = runs.get(runId);
+    if (inMemory) {
+      return inMemory;
+    }
+
+    const outputPath = artifactPathForRunId(runId);
+    try {
+      const artifact = JSON.parse(readFileSync(outputPath, 'utf8'));
+      if (!isRecord(artifact) || !isRecord(artifact.metadata) || artifact.metadata.run_id !== runId) {
+        return null;
+      }
+      runs.set(runId, artifact);
+      return artifact;
+    } catch {
+      return null;
+    }
   }
 
   return {

@@ -1,5 +1,6 @@
 import { test, expect } from '../support/fixtures';
 import { story20aRedPhaseData } from '../support/fixtures/story-2-0a-red-phase-data';
+import { createLatencySmokeHarness } from '../../scripts/latency-smoke-harness.mjs';
 
 test.describe('Story 2.0a API automation coverage', () => {
   async function runLatencySmoke(
@@ -75,6 +76,10 @@ test.describe('Story 2.0a API automation coverage', () => {
       error: {
         code: 'LATENCY_THRESHOLD_EXCEEDED',
       },
+      threshold_evaluation: {
+        highlight_p95_within_budget: false,
+        queue_advance_p95_within_budget: false,
+      },
       failures: expect.arrayContaining([
         expect.objectContaining({
           scenario: expect.any(String),
@@ -93,10 +98,53 @@ test.describe('Story 2.0a API automation coverage', () => {
       error: {
         code: 'LATENCY_THRESHOLD_EXCEEDED',
       },
+      threshold_evaluation: {
+        highlight_p95_within_budget: false,
+        queue_advance_p95_within_budget: false,
+      },
       process: {
         exit_code: 1,
       },
     });
+  });
+
+  test('[P1][AC1] should compute overall percentiles from raw samples for deterministic single-scenario runs', async ({
+    apiRequest,
+  }) => {
+    const response = await apiRequest<{
+      run_id: string;
+      metrics: {
+        highlight_latency_ms: { p50: number; p95: number; p99: number };
+        queue_advance_latency_ms: { p50: number; p95: number; p99: number };
+      };
+    }>({
+      method: 'POST',
+      path: '/api/v1/perf/latency-smoke/run',
+      body: {
+        scenario_seed: story20aRedPhaseData.scenarioSeed,
+        scenarios: [story20aRedPhaseData.scenarios[0]],
+        thresholds: {
+          highlight_ms_max: story20aRedPhaseData.thresholds.highlightP95MsMax,
+          queue_advance_ms_max: story20aRedPhaseData.thresholds.queueAdvanceP95MsMax,
+        },
+      },
+    });
+
+    expect(response.status).toBe(200);
+    const artifact = await apiRequest<{
+      scenarios: Array<{
+        highlight_latency_ms: { p50: number; p95: number; p99: number };
+        queue_advance_latency_ms: { p50: number; p95: number; p99: number };
+      }>;
+    }>({
+      method: 'GET',
+      path: `/api/v1/perf/latency-smoke/runs/${response.body.run_id}/artifact`,
+    });
+
+    expect(artifact.status).toBe(200);
+    expect(artifact.body.scenarios).toHaveLength(1);
+    expect(response.body.metrics.highlight_latency_ms).toEqual(artifact.body.scenarios[0].highlight_latency_ms);
+    expect(response.body.metrics.queue_advance_latency_ms).toEqual(artifact.body.scenarios[0].queue_advance_latency_ms);
   });
 
   test('[P1][AC3] should emit latency summary artifact with run metadata for trend comparisons', async ({ apiRequest }) => {
@@ -182,6 +230,31 @@ test.describe('Story 2.0a API automation coverage', () => {
         reason: 'non_deterministic_ordering_disallowed',
       },
       mutation_applied: false,
+    });
+  });
+
+  test('[P1][AC3] should resolve persisted artifacts after harness re-instantiation', async () => {
+    const harness = createLatencySmokeHarness();
+    const runResult = harness.runLatencySmoke({
+      scenario_seed: story20aRedPhaseData.scenarioSeed,
+      scenarios: story20aRedPhaseData.scenarios,
+      thresholds: {
+        highlight_ms_max: story20aRedPhaseData.thresholds.highlightP95MsMax,
+        queue_advance_ms_max: story20aRedPhaseData.thresholds.queueAdvanceP95MsMax,
+      },
+    });
+
+    expect(runResult.statusCode).toBe(200);
+    const runId = (runResult.body as { run_id: string }).run_id;
+
+    const restartedHarness = createLatencySmokeHarness();
+    const artifact = restartedHarness.getArtifact(runId);
+
+    expect(artifact).toMatchObject({
+      metadata: {
+        run_id: runId,
+      },
+      output_path: expect.stringContaining('_bmad-output/test-artifacts'),
     });
   });
 });
