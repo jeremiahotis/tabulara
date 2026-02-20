@@ -78,7 +78,7 @@ jobs:
         run: npm run lint --if-present
 
   test:
-    name: Test (Shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }})
+    name: Test (Shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [status-integrity, lint]
@@ -115,7 +115,7 @@ jobs:
       - name: Run tests (sharded)
         env:
           CI: "true"
-        run: npm run test:e2e -- --shard=${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
 
       - name: Upload test artifacts on failure
         if: failure()
@@ -200,11 +200,16 @@ jobs:
           echo "Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Optional Slack notification on failure
-        if: ${{ (needs['status-integrity'].result != 'success' || needs.lint.result != 'success' || needs.test.result != 'success' || needs.burn-in.result == 'failure') && secrets.CI_SLACK_WEBHOOK != '' }}
+        if: ${{ needs['status-integrity'].result != 'success' || needs.lint.result != 'success' || needs.test.result != 'success' || needs.burn-in.result == 'failure' }}
         env:
           CI_SLACK_WEBHOOK: ${{ secrets.CI_SLACK_WEBHOOK }}
         shell: bash
         run: |
+          if [[ -z "${CI_SLACK_WEBHOOK:-}" ]]; then
+            echo "CI_SLACK_WEBHOOK is not configured; skipping notification."
+            exit 0
+          fi
+
           payload=$(cat <<'JSON'
           {
             "text": "Test Pipeline failed for ${{ github.repository }} on ${{ github.ref_name }}. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
