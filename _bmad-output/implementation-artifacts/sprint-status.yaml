@@ -32,6 +32,7 @@
 # - Stories can be worked in parallel if team capacity allows
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Canonical story status authority is this file; story markdown Status fields are derived projections
 
 generated: '2026-02-18'
 project: 'Tabulara'
@@ -45,8 +46,8 @@ development_status:
   1-2-create-and-pin-sessions-through-command-handlers: done
   1-3-import-documents-with-duplicate-handling: done
   1-4-apply-preprocessing-and-controlled-reprocessing: done
-  1-5-run-extraction-and-persist-derived-data-updates: review
-  epic-1-retrospective: optional
+  1-5-run-extraction-and-persist-derived-data-updates: done
+  epic-1-retrospective: done
   epic-2: backlog
   2-1-verification-queue-with-source-synchronized-focus: backlog
   2-2-assign-and-update-field-values-with-lock-controls: backlog
@@ -59,6 +60,7 @@ development_status:
   2-9-verification-performance-targets: backlog
   2-10-incremental-validation-behavior: backlog
   2-11-mapping-immediate-effect: backlog
+  2-12-enforce-story-status-integrity-across-artifacts: backlog
   epic-2-retrospective: optional
   epic-3: backlog
   3-1-export-session-artifacts-with-manifest-integrity: backlog

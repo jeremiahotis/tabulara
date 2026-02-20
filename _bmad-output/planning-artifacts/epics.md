@@ -520,6 +520,40 @@ So that corrections improve current and future sessions without delay.
 **Then** extraction/mapping quality improves versus a baseline run without those rules,
 **And** improvement metrics are recorded.
 
+### Story 2.12: Enforce Story Status Integrity Across Artifacts
+
+As a project lead,
+I want story workflow status to be deterministically synchronized across tracking artifacts,
+So that review, planning, and delivery decisions are based on trustworthy status data.
+
+**FRs implemented:** FR1, FR2, FR6
+
+**Acceptance Criteria:**
+
+1.
+**Given** story status is tracked in `_bmad-output/implementation-artifacts/sprint-status.yaml`,
+**When** a status verification command runs,
+**Then** it compares canonical entries to story markdown `Status:` fields,
+**And** exits non-zero on any mismatch with a deterministic mismatch report.
+
+2.
+**Given** pull requests or local handoff checkpoints,
+**When** CI or local status-integrity hooks run,
+**Then** merges/handovers are blocked if any story status mismatch exists,
+**And** the blocking output identifies exact files and required corrections.
+
+3.
+**Given** a valid status transition request,
+**When** transition tooling applies a state change,
+**Then** allowed transitions are enforced (`backlog -> ready-for-dev -> in-progress -> review -> done`),
+**And** canonical plus derived status projections are updated atomically.
+
+4.
+**Given** a request to move a story to `done`,
+**When** review evidence requirements are missing,
+**Then** the transition is rejected with deterministic reason codes,
+**And** status remains unchanged until evidence is present.
+
 ## Epic 3: Trusted Export and Immutable Finalization
 
 Users can export a validated dataset with manifest evidence, then lock the session so finalized outputs are immutable and mutation attempts are deterministically rejected.

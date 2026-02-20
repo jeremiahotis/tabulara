@@ -1,6 +1,6 @@
 # Story 1.5: Run Extraction and Persist Derived Data Updates
 
-Status: review
+Status: done
 
 ## Story
 
