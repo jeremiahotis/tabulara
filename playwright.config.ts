@@ -1,10 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 import process from 'node:process';
 
-const baseURL = process.env.BASE_URL ?? 'http://127.0.0.1:3000';
+const baseURL = process.env.BASE_URL ?? 'http://127.0.0.1:4173';
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests',
   fullyParallel: true,
   timeout: 60_000,
   expect: {
@@ -26,10 +26,31 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   outputDir: 'test-results/artifacts',
+  webServer: {
+    command: 'npm run dev',
+    url: baseURL,
+    env: {
+      ...process.env,
+      HOST: '127.0.0.1',
+      PORT: '4173',
+      API_HOST: '127.0.0.1',
+      API_PORT: '4174',
+    },
+    reuseExistingServer: true,
+    timeout: 60_000,
+  },
   projects: [
     {
-      name: 'chromium',
+      name: 'chromium-e2e',
+      testMatch: /e2e\/.*\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'api',
+      testMatch: /api\/.*\.spec\.ts$/,
+      use: {
+        baseURL: process.env.API_URL ?? baseURL,
+      },
     },
   ],
 });

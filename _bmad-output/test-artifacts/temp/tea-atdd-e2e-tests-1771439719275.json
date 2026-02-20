@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "subprocess": "atdd-e2e-tests",
+  "tests": [
+    {
+      "file": "tests/e2e/story-1-1-initial-project.spec.ts",
+      "content": "import { test, expect } from '@playwright/test';\n\ntest.describe('Story 1.1 startup and envelope behavior (ATDD RED)', () => {\n  test.skip('[P0][AC1] should show desktop shell booted with frontend and backend health checks passing', async ({ page }) => {\n    // Given the app is launched in development mode\n    // When the operator opens the initial workspace\n    await page.goto('/');\n\n    // Then shell and health checks are visible as passing\n    await expect(page.getByTestId('app-shell-ready')).toHaveText('ready');\n    await expect(page.getByTestId('frontend-health-status')).toHaveText('up');\n    await expect(page.getByTestId('backend-health-status')).toHaveText('up');\n    await expect(page.getByTestId('api-version-badge')).toHaveText('/api/v1');\n  });\n\n  test.skip('[P0][AC2] should reject command submission when envelope fields are missing', async ({ page }) => {\n    // Given operator opens command dispatcher UI\n    await page.goto('/');\n\n    // When required envelope fields are omitted and command is submitted\n    await page.getByTestId('command-type-input').fill('session.initialize');\n    await page.getByTestId('command-submit-button').click();\n\n    // Then deterministic machine-readable errors are shown and no mutation occurs\n    await expect(page.getByTestId('command-error-code')).toHaveText('CMD_ENVELOPE_VALIDATION_FAILED');\n    await expect(page.getByTestId('command-error-missing-fields')).toContainText('command_id, actor, timestamp, payload');\n    await expect(page.getByTestId('mutation-state')).toHaveText('none');\n    await expect(page.getByTestId('event-append-state')).toHaveText('none');\n  });\n});\n",
+      "description": "ATDD E2E tests for Story 1.1 startup and dispatcher UX (RED PHASE)",
+      "expected_to_fail": true,
+      "acceptance_criteria_covered": [
+        "AC1: Desktop shell startup and health indicators visible",
+        "AC2: Missing envelope field validation displayed in UI"
+      ],
+      "priority_coverage": {
+        "P0": 2,
+        "P1": 0,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "startupHealthStateFixture"
+  ],
+  "knowledge_fragments_used": [
+    "selector-resilience",
+    "timing-debugging",
+    "fixture-architecture"
+  ],
+  "test_count": 2,
+  "tdd_phase": "RED",
+  "summary": "Generated 2 FAILING E2E tests for Story 1.1"
+}

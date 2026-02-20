@@ -1,7 +1,7 @@
 ---
 stepsCompleted: ['step-01-detect-mode', 'step-02-load-context', 'step-03-risk-and-testability', 'step-04-coverage-plan', 'step-05-generate-output']
 lastStep: 'step-05-generate-output'
-lastSaved: '2026-02-18'
+lastSaved: '2026-02-20'
 ---
 
 ## Step 1 - Detect Mode & Prerequisites
@@ -154,3 +154,116 @@ lastSaved: '2026-02-18'
   - Release gate: no unmitigated high-priority risks without explicit waiver.
 - Open assumptions:
   - Deterministic error-code catalog and extraction failure-injection hooks will be available in Sprint 1.
+
+## Step 1 - Detect Mode & Prerequisites (Epic-Level Run)
+- Mode selected: **Epic-Level** (explicit user intent: "testarch-test-design epic 2").
+- Inputs confirmed from project artifacts:
+  - Epic requirements: `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/epics.md` (Epic 2 section)
+  - Epic implementation context: `/Users/jeremiahotis/projects/tabulara/_bmad-output/implementation-artifacts/2-12-enforce-story-status-integrity-across-artifacts.md`
+  - Architecture context: `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/architecture.md`
+- Prerequisites satisfied for epic-level test plan generation for Epic 2.
+
+## Step 2 - Load Context (Epic-Level Run)
+- Loaded TEA config flags:
+  - `tea_use_playwright_utils: true`
+  - `tea_browser_automation: auto`
+  - `test_artifacts: /Users/jeremiahotis/projects/tabulara/_bmad-output/test-artifacts`
+- Loaded Epic-level project artifacts:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/epics.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/tabulara-prd-command-event-model.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/architecture.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/test-artifacts/test-design-architecture.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/test-artifacts/test-design-qa.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/implementation-artifacts/2-12-enforce-story-status-integrity-across-artifacts.md`
+- Existing test inventory baseline:
+  - Most automated suites currently target Epic 1 (`tests/api/story-1-*`, `tests/e2e/story-1-*`).
+  - No broad Epic 2 queue/mapping/validation/provenance suites detected yet.
+- Browser exploration:
+  - `playwright-cli` execution was not used in this run; context derived from code/doc artifacts.
+- Loaded required knowledge fragments:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/risk-governance.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/probability-impact.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/test-levels-framework.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/test-priorities-matrix.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/playwright-cli.md`
+
+## Step 3 - Risk and Testability (Epic-Level Run)
+- System-level testability review: not applicable for this run (Epic-level mode selected).
+- Risk assessment evidence basis:
+  - Epic 2 acceptance criteria from `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/epics.md`
+  - PRD command/event and atomicity constraints from `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/tabulara-prd-command-event-model.md`
+  - Architecture and UX constraints from `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/architecture.md`
+- High risks prioritized around:
+  - command-event integrity in mapping/review/validation flows,
+  - queue determinism under live updates,
+  - verification performance thresholds,
+  - override auditability, and
+  - batch-resolution target isolation.
+
+## Step 4 - Coverage Plan (Epic-Level Run)
+- Built a risk-linked coverage matrix with explicit P0-P3 prioritization and test-level selection (API/Integration/E2E/Perf/a11y).
+- Execution strategy defined as PR/Nightly/Weekly without redundant test re-listing.
+- Resource ranges and quality gates set:
+  - P0 pass rate 100%
+  - P1 pass rate >=95%
+  - high-risk mitigations complete/waived before release
+  - coverage target >=80%.
+
+## Step 5 - Generate Output (Epic-Level Run)
+- Mode used: **Epic-Level** (Epic 2).
+- Output generated:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/test-artifacts/test-design-epic-2.md`
+- Checklist validation highlights:
+  - Risk matrix includes IDs, categories, P/I scoring, mitigation owners, and timelines.
+  - Coverage plan maps requirements to test levels with P0-P3 priorities.
+  - PR/Nightly/Weekly execution strategy included.
+  - Resource estimates are ranges (no false precision).
+  - Quality gates and exit thresholds defined.
+- Blocker decisions (updated):
+  - Treat latency instrumentation + benchmark harness as required `2.0a` enablement (not optional).
+  - Treat rule-learning provenance envelope as required `2.0b` enablement with append-only contract.
+  - Treat CI/local status-integrity verifier as required `2.0c` enablement with identical contract and exit codes.
+
+## Step 1 - Detect Mode & Prerequisites (Epic-Level Update Run)
+- Mode selected: **Epic-Level** (explicit user intent: "td update Epic 2").
+- Inputs confirmed for Epic 2 update scope:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/epics.md` (Epic 2 + stories 2.0a/2.0b/2.0c)
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/implementation-artifacts/2-0a-latency-budget-smoke-harness.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/implementation-artifacts/2-0b-provenance-contract-v1-for-rule-derived-artifacts.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/implementation-artifacts/2-0c-status-integrity-verifier-parity-local-and-ci.md`
+- Prerequisites satisfied for epic-level test plan update.
+
+## Step 2 - Load Context (Epic-Level Update Run)
+- Loaded config flags:
+  - `tea_use_playwright_utils: true`
+  - `tea_browser_automation: auto`
+- Loaded required Epic-level knowledge fragments:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/risk-governance.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/probability-impact.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/test-levels-framework.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/test-priorities-matrix.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/playwright-cli.md`
+- Existing test scan for explicit 2.0a/2.0b/2.0c patterns found no direct coverage artifacts under `tests/` (gap recorded in plan).
+
+## Step 3 - Risk and Testability (Epic-Level Update Run)
+- System-level testability review not applicable (epic-level mode).
+- Reinforced Epic 2 enablement risks and traceability:
+  - `2.0a` mapped to latency budget regression containment (`R-203`).
+  - `2.0b` mapped to provenance contract completeness and no-partial-mutation guarantees (`R-206`).
+  - `2.0c` mapped to status-integrity drift prevention and local/CI parity (`R-207`).
+
+## Step 4 - Coverage Plan (Epic-Level Update Run)
+- Added explicit "Enablement Story Traceability (2.0a/2.0b/2.0c)" matrix.
+- Expanded coverage matrix with direct AC-linked rows for 2.0a/2.0b/2.0c and updated totals:
+  - P0: 12 scenarios (~34-52 hours)
+  - P1: 9 scenarios (~26-42 hours)
+  - P2/P3: 5 scenarios (~10-20 hours)
+- Updated execution strategy and quality gates so 2.0a/2.0b/2.0c are explicit release blockers with deterministic evidence requirements.
+
+## Step 5 - Generate Output (Epic-Level Update Run)
+- Updated output document:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/test-artifacts/test-design-epic-2.md`
+- Validation summary:
+  - Story-level traceability for 2.0a/2.0b/2.0c now explicit.
+  - Coverage, effort ranges, and quality gates updated to reflect enablement-blocker status.
+  - Artifact evidence requirement retained under `_bmad-output/test-artifacts` for sign-off.

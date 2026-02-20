@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "subprocess": "api-tests",
+  "tests": [
+    {
+      "file": "tests/api/story-1-1-initial-project.automation.spec.ts",
+      "content": "import { test, expect } from '../support/fixtures';\nimport { createCommandEnvelope } from '../support/fixtures/factories/command-envelope-factory';\n\ntest.describe('Story 1.1 API automation coverage', () => {\n  test('[P0][AC1] should expose /api/v1/health for startup readiness checks', async ({ apiRequest }) => {\n    const { status, body } = await apiRequest<{\n      status: string;\n      services: { frontend: string; backend: string };\n      apiVersion: string;\n    }>({\n      method: 'GET',\n      path: '/api/v1/health',\n    });\n\n    expect(status).toBe(200);\n    expect(body).toMatchObject({\n      status: 'ok',\n      services: {\n        frontend: 'up',\n        backend: 'up',\n      },\n      apiVersion: 'v1',\n    });\n  });\n\n  test('[P0][AC1] should accept a valid command envelope on /api/v1/commands/dispatch', async ({\n    apiRequest,\n  }) => {\n    const envelope = createCommandEnvelope();\n\n    const { status, body } = await apiRequest<{ accepted: boolean; command_id: string }>({\n      method: 'POST',\n      path: '/api/v1/commands/dispatch',\n      body: envelope,\n    });\n\n    expect(status).toBe(202);\n    expect(body).toMatchObject({\n      accepted: true,\n      command_id: envelope.command_id,\n    });\n  });\n\n  test('[P0][AC2] should reject envelopes with missing required fields and no mutation side effects', async ({\n    apiRequest,\n  }) => {\n    const invalidEnvelope = {\n      type: 'session.initialize',\n      payload: { document_path: '/tmp/demo.pdf' },\n    };\n\n    const { status, body } = await apiRequest<{\n      error: { code: string; category: string; missing_fields: string[] };\n      mutation_applied: boolean;\n      event_appended: boolean;\n    }>({\n      method: 'POST',\n      path: '/api/v1/commands/dispatch',\n      body: invalidEnvelope,\n    });\n\n    expect(status).toBe(400);\n    expect(body).toMatchObject({\n      error: {\n        code: 'CMD_ENVELOPE_VALIDATION_FAILED',\n        category: 'validation',\n      },\n      mutation_applied: false,\n      event_appended: false,\n    });\n    expect(body.error.missing_fields).toEqual(\n      expect.arrayContaining(['command_id', 'actor', 'timestamp']),\n    );\n  });\n\n  test('[P1][AC2] should return deterministic field-level validation details for each required field', async ({\n    apiRequest,\n  }) => {\n    const requiredFields = ['command_id', 'type', 'actor', 'timestamp', 'payload'] as const;\n\n    for (const field of requiredFields) {\n      const envelope = createCommandEnvelope();\n      const invalid = { ...envelope } as Record<string, unknown>;\n      delete invalid[field];\n\n      const { status, body } = await apiRequest<{\n        error: {\n          code: string;\n          missing_fields: string[];\n          details: Array<{ field: string; reason: string }>;\n        };\n        mutation_applied: boolean;\n        event_appended: boolean;\n      }>({\n        method: 'POST',\n        path: '/api/v1/commands/dispatch',\n        body: invalid,\n      });\n\n      expect(status).toBe(400);\n      expect(body.error.code).toBe('CMD_ENVELOPE_VALIDATION_FAILED');\n      expect(body.error.missing_fields).toContain(field);\n      expect(body.error.details).toEqual(\n        expect.arrayContaining([\n          expect.objectContaining({\n            field,\n            reason: 'required',\n          }),\n        ]),\n      );\n      expect(body.mutation_applied).toBe(false);\n      expect(body.event_appended).toBe(false);\n    }\n  });\n});\n",
+      "description": "API automation coverage for Story 1.1 (/api/v1 health + command dispatcher)",
+      "priority_coverage": {
+        "P0": 3,
+        "P1": 1,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "authToken",
+    "commandEnvelopeFactory"
+  ],
+  "knowledge_fragments_used": [
+    "api-request",
+    "data-factories",
+    "api-testing-patterns",
+    "test-priorities-matrix"
+  ],
+  "test_count": 4,
+  "summary": "Generated 4 API tests for Story 1.1 critical and high-priority scenarios"
+}

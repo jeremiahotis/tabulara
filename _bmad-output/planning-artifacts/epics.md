@@ -187,7 +187,7 @@ So that image quality improves without hidden or unsafe state changes.
 **And** `PreprocessingApplied` is appended in the same command transaction.
 
 2.
-**Given** already processed documents,
+**Given** imported or preprocessed documents,
 **When** I issue `ReprocessDocument`,
 **Then** only permitted lifecycle state changes occur with deterministic transition validation,
 **And** `DocumentReprocessed` is appended while preserving existing audit history.
@@ -217,6 +217,90 @@ So that verification can begin from reproducible machine-generated candidates.
 ## Epic 2: Verification, Mapping, and Quality Resolution
 
 Users can verify and correct extracted data in a fast queue-first workflow, map fields/items/extra tables, apply learning rules, and resolve review and validation issues with visible provenance.
+
+### Story 2.0a: Latency Budget Smoke Harness
+
+As a platform engineer,
+I want a deterministic latency smoke harness for verification interactions,
+So that regressions are blocked before merge with low-cost automated checks.
+
+**FRs implemented:** FR4, FR6
+
+**Acceptance Criteria:**
+
+1.
+**Given** a fixed seeded scenario set representative of verification workloads,
+**When** the latency smoke harness runs locally or in CI,
+**Then** it reports p50/p95/p99 for evidence highlight latency and queue advance latency,
+**And** each metric is evaluated against configured threshold values.
+
+2.
+**Given** configured target thresholds (`<100ms` highlight, `<150ms` queue advance),
+**When** any required threshold is exceeded,
+**Then** the harness exits non-zero with deterministic machine-readable output,
+**And** the output identifies scenario, metric, observed percentile, and threshold.
+
+3.
+**Given** a completed harness run,
+**When** artifacts are written,
+**Then** summary output is persisted in `_bmad-output/test-artifacts`,
+**And** results include enough context to compare repeated runs for regression detection.
+
+### Story 2.0b: Provenance Contract v1 for Rule-Derived Artifacts
+
+As a platform engineer,
+I want an append-only provenance contract for all rule-derived outputs,
+So that rule influence is always auditable and review decisions remain explainable.
+
+**FRs implemented:** FR1, FR2, FR4, FR6
+
+**Acceptance Criteria:**
+
+1.
+**Given** a value influenced by anchor or dictionary rules,
+**When** the derived value is persisted,
+**Then** provenance envelope fields are populated with contract-required values:
+`provenance_source`, `provenance_inputs`, `provenance_rule_id`, optional `provenance_confidence`, and `provenance_created_at_utc`,
+**And** the envelope remains linked to the generated value with stable identifiers.
+
+2.
+**Given** missing or invalid required provenance fields,
+**When** command processing attempts persistence,
+**Then** the command is rejected with deterministic contract-violation feedback,
+**And** no partial mutation is committed.
+
+3.
+**Given** repeated recalculation or subsequent rule applications,
+**When** new derived outputs are produced,
+**Then** new provenance envelopes are appended without mutating previous provenance records,
+**And** provenance remains reachable from verification and detail surfaces.
+
+### Story 2.0c: Status-Integrity Verifier Parity (Local and CI)
+
+As a project lead,
+I want one status-integrity verifier contract for local and CI execution,
+So that workflow status drift is blocked consistently before handoff or merge.
+
+**FRs implemented:** FR1, FR2, FR6
+
+**Acceptance Criteria:**
+
+1.
+**Given** canonical status entries in `_bmad-output/implementation-artifacts/sprint-status.yaml` and story markdown `Status:` fields,
+**When** the verifier runs,
+**Then** mismatches are reported deterministically with story key, expected value, actual value, and artifact path,
+**And** the process exits non-zero when any mismatch exists.
+
+2.
+**Given** local developer checks and CI pipeline checks,
+**When** status-integrity verification is executed,
+**Then** both paths use the same verifier command and exit-code contract,
+**And** drift-blocking behavior is identical across environments.
+
+3.
+**Given** a fully synchronized status set,
+**When** the verifier completes,
+**Then** it exits zero with a deterministic success summary suitable for logs and automation.
 
 ### Story 2.1: Verification Queue with Source-Synchronized Focus
 
@@ -519,6 +603,40 @@ So that corrections improve current and future sessions without delay.
 **When** extraction and mapping run with learned rules enabled,
 **Then** extraction/mapping quality improves versus a baseline run without those rules,
 **And** improvement metrics are recorded.
+
+### Story 2.12: Enforce Story Status Integrity Across Artifacts
+
+As a project lead,
+I want story workflow status to be deterministically synchronized across tracking artifacts,
+So that review, planning, and delivery decisions are based on trustworthy status data.
+
+**FRs implemented:** FR1, FR2, FR6
+
+**Acceptance Criteria:**
+
+1.
+**Given** story status is tracked in `_bmad-output/implementation-artifacts/sprint-status.yaml`,
+**When** a status verification command runs,
+**Then** it compares canonical entries to story markdown `Status:` fields,
+**And** exits non-zero on any mismatch with a deterministic mismatch report.
+
+2.
+**Given** pull requests or local handoff checkpoints,
+**When** CI or local status-integrity hooks run,
+**Then** merges/handovers are blocked if any story status mismatch exists,
+**And** the blocking output identifies exact files and required corrections.
+
+3.
+**Given** a valid status transition request,
+**When** transition tooling applies a state change,
+**Then** allowed transitions are enforced (`backlog -> ready-for-dev -> in-progress -> review -> done`),
+**And** canonical plus derived status projections are updated atomically.
+
+4.
+**Given** a request to move a story to `done`,
+**When** review evidence requirements are missing,
+**Then** the transition is rejected with deterministic reason codes,
+**And** status remains unchanged until evidence is present.
 
 ## Epic 3: Trusted Export and Immutable Finalization
 

@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "subprocess": "e2e-tests",
+  "tests": [
+    {
+      "file": "tests/e2e/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts",
+      "content": "import { test, expect } from '../support/fixtures';\n\ntest.describe('Story 1.3 E2E automation coverage', () => {\n  test(\n    '[P1][AC1] should surface deterministic unsupported-command feedback when ImportDocument is dispatched from the shell',\n    { annotation: [{ type: 'skipNetworkMonitoring' }] },\n    async ({ page }) => {\n      const dispatchResponse = page.waitForResponse(\n        (response) =>\n          response.url().includes('/api/v1/commands/dispatch') &&\n          response.request().method() === 'POST' &&\n          response.status() === 400,\n      );\n\n      await page.goto('/');\n      await page.getByTestId('command-type-input').fill('ImportDocument');\n      await page.getByTestId('command-submit-button').click();\n\n      const response = await dispatchResponse;\n      expect(response.status()).toBe(400);\n      const body = (await response.json()) as {\n        error: {\n          code: string;\n          category: string;\n          details: Array<{ field: string; reason: string }>;\n        };\n        mutation_applied: boolean;\n        event_appended: boolean;\n      };\n\n      expect(body).toMatchObject({\n        error: {\n          code: 'CMD_TYPE_UNSUPPORTED',\n          category: 'validation',\n        },\n        mutation_applied: false,\n        event_appended: false,\n      });\n      expect(body.error.details).toEqual(\n        expect.arrayContaining([\n          expect.objectContaining({\n            field: 'type',\n            reason: 'unsupported_command_type',\n          }),\n        ]),\n      );\n\n      await expect(page.getByTestId('command-error-code')).toHaveText('CMD_TYPE_UNSUPPORTED');\n      await expect(page.getByTestId('mutation-state')).toHaveText('none');\n      await expect(page.getByTestId('event-append-state')).toHaveText('none');\n    },\n  );\n\n  test(\n    '[P1][AC2] should surface deterministic unsupported-command feedback when ConfirmDuplicate is dispatched from the shell',\n    { annotation: [{ type: 'skipNetworkMonitoring' }] },\n    async ({ page }) => {\n      const dispatchResponse = page.waitForResponse(\n        (response) =>\n          response.url().includes('/api/v1/commands/dispatch') &&\n          response.request().method() === 'POST' &&\n          response.status() === 400,\n      );\n\n      await page.goto('/');\n      await page.getByTestId('command-type-input').fill('ConfirmDuplicate');\n      await page.getByTestId('command-submit-button').click();\n\n      const response = await dispatchResponse;\n      expect(response.status()).toBe(400);\n      const body = (await response.json()) as {\n        error: {\n          code: string;\n          category: string;\n          details: Array<{ field: string; reason: string }>;\n        };\n        mutation_applied: boolean;\n        event_appended: boolean;\n      };\n\n      expect(body).toMatchObject({\n        error: {\n          code: 'CMD_TYPE_UNSUPPORTED',\n          category: 'validation',\n        },\n        mutation_applied: false,\n        event_appended: false,\n      });\n      expect(body.error.details).toEqual(\n        expect.arrayContaining([\n          expect.objectContaining({\n            field: 'type',\n            reason: 'unsupported_command_type',\n          }),\n        ]),\n      );\n\n      await expect(page.getByTestId('command-error-code')).toHaveText('CMD_TYPE_UNSUPPORTED');\n      await expect(page.getByTestId('mutation-state')).toHaveText('none');\n      await expect(page.getByTestId('event-append-state')).toHaveText('none');\n    },\n  );\n});\n",
+      "description": "E2E automation for Story 1.3 deterministic operator feedback while command handlers are pending",
+      "priority_coverage": {
+        "P0": 0,
+        "P1": 2,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "skipNetworkMonitoring-annotation"
+  ],
+  "knowledge_fragments_used": [
+    "fixture-architecture",
+    "network-first",
+    "selector-resilience",
+    "test-quality"
+  ],
+  "test_count": 2,
+  "summary": "Generated 2 E2E tests for Story 1.3 deterministic unsupported-command UX feedback"
+}

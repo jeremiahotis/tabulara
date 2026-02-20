@@ -1,0 +1,27 @@
+{
+  "tdd_phase": "RED",
+  "total_tests": 7,
+  "api_tests": 4,
+  "e2e_tests": 3,
+  "all_tests_skipped": true,
+  "expected_to_fail": true,
+  "fixtures_created": 2,
+  "acceptance_criteria_covered": [
+    "Document metadata and blob references persisted via command handlers",
+    "DocumentImported appended for accepted import command",
+    "Duplicate correlation evidence is visible in UI traceability surfaces",
+    "Duplicate state persisted and linked to original import context",
+    "DuplicateMarked appended with deterministic correlation fields",
+    "Operator can confirm duplicate handling linked to original import context",
+    "Operator can import one or more source documents with persisted metadata/blob references"
+  ],
+  "knowledge_fragments_used": [
+    "api-request",
+    "data-factories",
+    "selector-resilience",
+    "test-quality",
+    "timing-debugging"
+  ],
+  "subprocess_execution": "PARALLEL (API + E2E)",
+  "performance_gain": "~50% faster than sequential"
+}

@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "subprocess": "e2e-tests",
+  "tests": [
+    {
+      "file": "tests/e2e/story-1-2-create-and-pin-sessions-through-command-handlers.automation.spec.ts",
+      "content": "import { test, expect } from '../support/fixtures';\nimport { mockDispatchAccepted } from '../support/fixtures/network-mocks';\n\ntest.describe('Story 1.2 E2E automation coverage', () => {\n  test('[P0][AC1] should dispatch CreateSession from the UI and surface accepted mutation/event states', async ({\n    page,\n  }) => {\n    let dispatchedType = '';\n\n    await mockDispatchAccepted(page, {\n      onDispatch: (payload) => {\n        dispatchedType = String(payload.type ?? '');\n      },\n    });\n\n    const dispatchResponse = page.waitForResponse(\n      (response) =>\n        response.url().includes('/api/v1/commands/dispatch') &&\n        response.request().method() === 'POST' &&\n        response.status() === 202,\n    );\n\n    await page.goto('/');\n    await page.getByTestId('command-type-input').fill('CreateSession');\n    await page.getByTestId('command-submit-button').click();\n\n    const response = await dispatchResponse;\n    expect(response.status()).toBe(202);\n    expect(dispatchedType).toBe('CreateSession');\n\n    await expect(page.getByTestId('mutation-state')).toHaveText('applied');\n    await expect(page.getByTestId('event-append-state')).toHaveText('appended');\n    await expect(page.getByTestId('command-error-code')).toHaveText('');\n  });\n\n  test('[P0][AC2] should dispatch PinSession from the UI and preserve accepted mutation/event indicators', async ({\n    page,\n  }) => {\n    let dispatchedType = '';\n\n    await mockDispatchAccepted(page, {\n      onDispatch: (payload) => {\n        dispatchedType = String(payload.type ?? '');\n      },\n    });\n\n    const dispatchResponse = page.waitForResponse(\n      (response) =>\n        response.url().includes('/api/v1/commands/dispatch') &&\n        response.request().method() === 'POST' &&\n        response.status() === 202,\n    );\n\n    await page.goto('/');\n    await page.getByTestId('command-type-input').fill('PinSession');\n    await page.getByTestId('command-submit-button').click();\n\n    const response = await dispatchResponse;\n    expect(response.status()).toBe(202);\n    expect(dispatchedType).toBe('PinSession');\n\n    await expect(page.getByTestId('mutation-state')).toHaveText('applied');\n    await expect(page.getByTestId('event-append-state')).toHaveText('appended');\n    await expect(page.getByTestId('command-error-code')).toHaveText('');\n  });\n\n  test('[P1][AC1] should keep deterministic validation feedback while full envelope inputs are unavailable in UI', async ({\n    page,\n  }) => {\n    const dispatchResponse = page.waitForResponse(\n      (response) =>\n        response.url().includes('/api/v1/commands/dispatch') &&\n        response.request().method() === 'POST',\n    );\n\n    await page.goto('/');\n    await page.getByTestId('command-type-input').fill('CreateSession');\n    await page.getByTestId('command-submit-button').click();\n\n    const response = await dispatchResponse;\n    expect(response.status()).toBe(400);\n\n    await expect(page.getByTestId('command-error-code')).toHaveText('CMD_ENVELOPE_VALIDATION_FAILED');\n    await expect(page.getByTestId('command-error-missing-fields')).toContainText('command_id, actor, timestamp, payload');\n    await expect(page.getByTestId('mutation-state')).toHaveText('none');\n    await expect(page.getByTestId('event-append-state')).toHaveText('none');\n  });\n});\n",
+      "description": "E2E automation coverage for Story 1.2 operator dispatch flows",
+      "priority_coverage": {
+        "P0": 2,
+        "P1": 1,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "dispatchAcceptedNetworkMock"
+  ],
+  "knowledge_fragments_used": [
+    "network-first",
+    "selector-resilience",
+    "test-quality"
+  ],
+  "test_count": 3,
+  "summary": "Generated 3 E2E automation tests for Story 1.2 UI dispatch behavior"
+}

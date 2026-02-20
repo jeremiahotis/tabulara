@@ -1,0 +1,36 @@
+{
+  "total_tests": 6,
+  "api_tests": 4,
+  "e2e_tests": 2,
+  "fixtures_created": 0,
+  "fixture_needs": [
+    "apiRequest",
+    "document-import-command-factory",
+    "skipNetworkMonitoring-annotation"
+  ],
+  "api_test_files": 1,
+  "e2e_test_files": 1,
+  "priority_coverage": {
+    "P0": 2,
+    "P1": 4,
+    "P2": 0,
+    "P3": 0
+  },
+  "knowledge_fragments_used": [
+    "api-request",
+    "api-testing-patterns",
+    "data-factories",
+    "fixture-architecture",
+    "network-first",
+    "selector-resilience",
+    "test-priorities-matrix",
+    "test-quality"
+  ],
+  "subprocess_execution": "PARALLEL (API + E2E)",
+  "performance_gain": "~50% faster than sequential",
+  "generated_files": [
+    "tests/api/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts",
+    "tests/e2e/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts"
+  ],
+  "fixtures_status": "No new shared fixtures required; existing support fixtures satisfy subprocess needs"
+}

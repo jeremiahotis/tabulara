@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "subprocess": "atdd-e2e-tests",
+  "tests": [
+    {
+      "file": "tests/e2e/story-1-2-create-and-pin-sessions-through-command-handlers.spec.ts",
+      "content": "import { test, expect } from '@playwright/test';\n\ntest.describe('Story 1.2 session creation + pinning workflow (ATDD RED)', () => {\n  test.skip(\n    '[P0][AC1] should create session through CreateSession command and surface SessionCreated traceability',\n    async ({ page }) => {\n      const dispatchResponse = page.waitForResponse(\n        (response) =>\n          response.url().includes('/api/v1/commands/dispatch') &&\n          response.request().method() === 'POST' &&\n          response.status() === 202,\n      );\n\n      await page.goto('/');\n      await page.getByTestId('command-type-input').fill('CreateSession');\n      await page.getByTestId('project-id-input').fill('project-123');\n      await page.getByTestId('schema-id-input').fill('schema-123');\n      await page.getByTestId('command-submit-button').click();\n\n      await dispatchResponse;\n\n      await expect(page.getByTestId('session-list-item-latest')).toBeVisible();\n      await expect(page.getByTestId('session-status-latest')).toHaveText('created');\n      await expect(page.getByTestId('audit-event-type-latest')).toHaveText('SessionCreated');\n      await expect(page.getByTestId('audit-event-caused-by-latest')).toHaveText(/.+/);\n    },\n  );\n\n  test.skip(\n    '[P0][AC2] should pin an existing session and append SessionPinned atomically',\n    async ({ page }) => {\n      const pinResponse = page.waitForResponse(\n        (response) =>\n          response.url().includes('/api/v1/commands/dispatch') &&\n          response.request().method() === 'POST' &&\n          response.status() === 202,\n      );\n\n      await page.goto('/');\n      await page.getByTestId('session-list-item-latest').click();\n      await page.getByTestId('session-pin-toggle').click();\n\n      await pinResponse;\n\n      await expect(page.getByTestId('session-pinned-indicator')).toHaveText('pinned');\n      await expect(page.getByTestId('audit-event-type-latest')).toHaveText('SessionPinned');\n      await expect(page.getByTestId('transaction-status-latest')).toHaveText('atomic');\n    },\n  );\n\n  test.skip(\n    '[P1][AC2] should unpin an existing session and append SessionUnpinned atomically',\n    async ({ page }) => {\n      const unpinResponse = page.waitForResponse(\n        (response) =>\n          response.url().includes('/api/v1/commands/dispatch') &&\n          response.request().method() === 'POST' &&\n          response.status() === 202,\n      );\n\n      await page.goto('/');\n      await page.getByTestId('session-list-item-latest').click();\n      await page.getByTestId('session-pin-toggle').click();\n\n      await unpinResponse;\n\n      await expect(page.getByTestId('session-pinned-indicator')).toHaveText('unpinned');\n      await expect(page.getByTestId('audit-event-type-latest')).toHaveText('SessionUnpinned');\n      await expect(page.getByTestId('transaction-status-latest')).toHaveText('atomic');\n    },\n  );\n});\n",
+      "description": "ATDD E2E RED tests for Story 1.2 command workflow",
+      "expected_to_fail": true,
+      "acceptance_criteria_covered": [
+        "CreateSession UI command flow updates session and audit traceability UI",
+        "PinSession/UnpinSession toggle pin state and emit mirrored audit events"
+      ],
+      "priority_coverage": {
+        "P0": 2,
+        "P1": 1,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "sessionCommandUiSelectors"
+  ],
+  "knowledge_fragments_used": [
+    "selector-resilience",
+    "timing-debugging",
+    "network-first"
+  ],
+  "test_count": 3,
+  "tdd_phase": "RED",
+  "summary": "Generated 3 FAILING E2E tests for Story 1.2"
+}

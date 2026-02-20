@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "subprocess": "api-tests",
+  "tests": [
+    {
+      "file": "tests/api/story-1-3-import-documents-with-duplicate-handling.automation.spec.ts",
+      "content": "import { test, expect } from '../support/fixtures';\nimport {\n  createImportDocumentCommandEnvelope,\n  createConfirmDuplicateCommandEnvelope,\n} from '../support/fixtures/factories/document-import-command-factory';\n\ntest.describe('Story 1.3 API automation coverage', () => {\n  test('[P0][AC1] should reject ImportDocument until handler support lands without mutation/event side effects', async ({\n    apiRequest,\n  }) => {\n    const command = createImportDocumentCommandEnvelope({\n      payload: {\n        session_id: 'session-import-p0',\n        blob_ids: ['blob-import-001', 'blob-import-002'],\n        metadata: {\n          source: 'import',\n          file_name: 'invoice-001.pdf',\n          mime_type: 'application/pdf',\n          file_hash: 'a'.repeat(64),\n        },\n      },\n    });\n\n    const { status, body } = await apiRequest<{\n      error: {\n        code: string;\n        category: string;\n        details: Array<{ field: string; reason: string }>;\n        allowed_types: string[];\n      };\n      mutation_applied: boolean;\n      event_appended: boolean;\n    }>({\n      method: 'POST',\n      path: '/api/v1/commands/dispatch',\n      body: command,\n    });\n\n    expect(status).toBe(400);\n    expect(body).toMatchObject({\n      error: {\n        code: 'CMD_TYPE_UNSUPPORTED',\n        category: 'validation',\n      },\n      mutation_applied: false,\n      event_appended: false,\n    });\n    expect(body.error.allowed_types).toEqual(expect.arrayContaining(['CreateSession', 'PinSession']));\n    expect(body.error.details).toEqual(\n      expect.arrayContaining([\n        expect.objectContaining({\n          field: 'type',\n          reason: 'unsupported_command_type',\n        }),\n      ]),\n    );\n  });\n\n  test('[P0][AC2] should reject ConfirmDuplicate until handler support lands without mutation/event side effects', async ({\n    apiRequest,\n  }) => {\n    const command = createConfirmDuplicateCommandEnvelope({\n      payload: {\n        session_id: 'session-duplicate-p0',\n        document_id: 'doc-duplicate-001',\n        duplicate_of_document_id: 'doc-original-001',\n      },\n    });\n\n    const { status, body } = await apiRequest<{\n      error: {\n        code: string;\n        category: string;\n        details: Array<{ field: string; reason: string }>;\n        allowed_types: string[];\n      };\n      mutation_applied: boolean;\n      event_appended: boolean;\n    }>({\n      method: 'POST',\n      path: '/api/v1/commands/dispatch',\n      body: command,\n    });\n\n    expect(status).toBe(400);\n    expect(body).toMatchObject({\n      error: {\n        code: 'CMD_TYPE_UNSUPPORTED',\n        category: 'validation',\n      },\n      mutation_applied: false,\n      event_appended: false,\n    });\n    expect(body.error.allowed_types).toEqual(expect.arrayContaining(['CreateSession', 'PinSession']));\n    expect(body.error.details).toEqual(\n      expect.arrayContaining([\n        expect.objectContaining({\n          field: 'type',\n          reason: 'unsupported_command_type',\n        }),\n      ]),\n    );\n  });\n\n  test('[P1][AC1] should generate deterministic ImportDocument envelope defaults with stable metadata shape', async () => {\n    const command = createImportDocumentCommandEnvelope({\n      payload: {\n        session_id: 'session-import-p1',\n        blob_ids: ['blob-a', 'blob-b'],\n      },\n    });\n\n    expect(command.type).toBe('ImportDocument');\n    expect(command.command_id).toMatch(\n      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,\n    );\n    expect(command.payload).toMatchObject({\n      session_id: 'session-import-p1',\n      blob_ids: ['blob-a', 'blob-b'],\n      metadata: {\n        source: 'import',\n        file_name: expect.any(String),\n        mime_type: expect.any(String),\n      },\n    });\n    expect(command.payload.metadata.file_hash).toMatch(/^[0-9a-f]{64}$/i);\n  });\n\n  test('[P1][AC2] should generate deterministic duplicate correlation fields from session/document identifiers', async () => {\n    const command = createConfirmDuplicateCommandEnvelope({\n      payload: {\n        session_id: 'session-dup-p1',\n        document_id: 'doc-z',\n        duplicate_of_document_id: 'doc-a',\n      },\n    });\n\n    expect(command.type).toBe('ConfirmDuplicate');\n    expect(command.payload.correlation).toMatchObject({\n      deterministic_key: 'session-dup-p1:doc-z:doc-a',\n      pair_key: 'doc-a::doc-z',\n      detector: 'hash',\n    });\n    expect(command.payload.correlation.source_import_command_id).toMatch(\n      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,\n    );\n  });\n});\n",
+      "description": "API automation for Story 1.3 current-state command dispatch behavior and deterministic envelope contracts",
+      "priority_coverage": {
+        "P0": 2,
+        "P1": 2,
+        "P2": 0,
+        "P3": 0
+      }
+    }
+  ],
+  "fixture_needs": [
+    "apiRequest",
+    "document-import-command-factory"
+  ],
+  "knowledge_fragments_used": [
+    "api-request",
+    "data-factories",
+    "api-testing-patterns",
+    "test-priorities-matrix"
+  ],
+  "test_count": 4,
+  "summary": "Generated 4 API tests for Story 1.3 covering deterministic guardrails and payload contracts"
+}
