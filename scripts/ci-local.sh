@@ -10,6 +10,7 @@ echo "Running local CI parity checks"
 echo " - Shards: ${TOTAL_SHARDS}"
 echo " - Burn-in: ${RUN_BURN_IN}"
 
+npm run test:status-integrity
 npm run lint --if-present
 npm run quality:latency-smoke
 
