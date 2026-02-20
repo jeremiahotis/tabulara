@@ -24,10 +24,10 @@ lastSaved: '2026-02-20'
 
 **Coverage Summary:**
 
-- P0 scenarios: 10 (~28-44 hours)
-- P1 scenarios: 8 (~24-38 hours)
+- P0 scenarios: 12 (~34-52 hours)
+- P1 scenarios: 9 (~26-42 hours)
 - P2/P3 scenarios: 5 (~10-20 hours)
-- **Total effort**: ~62-102 hours (~2-3.5 weeks)
+- **Total effort**: ~70-114 hours (~2.5-4 weeks)
 
 ---
 
@@ -101,38 +101,51 @@ lastSaved: '2026-02-20'
 
 ---
 
+## Enablement Story Traceability (2.0a/2.0b/2.0c)
+
+| Story | Acceptance Criteria Covered | Planned Coverage Location | Gate Expectation |
+| --- | --- | --- | --- |
+| 2.0a Latency Budget Smoke Harness | AC1 percentile reporting, AC2 threshold failure contract, AC3 artifact persistence | P0 row "Story 2.0a AC1-AC2...", P1 row "Story 2.0a AC3..." | Threshold breach exits non-zero; artifact summary persisted under `_bmad-output/test-artifacts` |
+| 2.0b Provenance Contract v1 | AC1 envelope completeness + stable linkage, AC2 rejection with no partial mutation, AC3 append-only recalculation history | P0 row "Story 2.0b AC2...", P1 rows "Story 2.0b AC1..." and "Story 2.0b AC3..." | 100% rule-derived outputs carry required contract fields; no mutable provenance history |
+| 2.0c Status-Integrity Verifier Parity | AC1 deterministic mismatch output + non-zero, AC2 local/CI command parity, AC3 deterministic zero-exit success | P0 row "Story 2.0c AC1-AC2...", P1 row "Story 2.0c AC3..." | Same verifier contract and exit behavior in local and CI gates |
+
+---
+
 ## Test Coverage Plan
 
 ### P0 (Critical)
 
 **Criteria:** Blocks core functionality + high risk (>=6) + no workaround
 
-| Requirement | Test Level | Risk Link | Test Count | Owner | Notes |
+| Story/Requirement | Test Level | Risk Link | Test Count | Owner | Notes |
 | --- | --- | --- | --- | --- | --- |
+| Story 2.0b AC2: invalid/missing required provenance fields are rejected with no partial mutation | API/Integration | R-206 | 1 | Backend + QA | Deterministic contract-violation payload and transactional rollback assertions |
+| Story 2.0c AC1-AC2: verifier reports drift deterministically and exits non-zero with same command/exit contract in local and CI | API/CLI | R-207 | 1 | Platform + QA | Includes story key, expected/actual status, and artifact path |
 | Field mapping commands append immutable events with valid linkage | Integration | R-201 | 2 | Backend + QA | `AssignFieldValue`, lock/unlock flow |
 | Item/extra-table command transactions preserve atomicity and event integrity | Integration | R-201 | 2 | Backend + QA | Add/delete/assign/lock row coverage |
 | Queue navigation context persistence across resolve/filter/validation refresh | E2E | R-202 | 2 | QA + Frontend | Active item + position invariance |
 | Batch resolve only affects targeted items and preserves unresolved ordering | E2E/API | R-205 | 1 | QA | Deterministic ordering assertions |
 | Validation override requires deterministic reason and audit metadata | API/Integration | R-204 | 1 | QA + Backend | Reject missing rationale |
-| Queue latency thresholds under representative workload | E2E/Perf | R-203 | 2 | QA + Platform | <100ms highlight, <150ms advance |
+| Story 2.0a AC1-AC2: latency harness reports p50/p95/p99 and enforces threshold non-zero failure contract | E2E/Perf | R-203 | 2 | QA + Platform | <100ms highlight, <150ms advance, machine-readable failure payload |
 
-**Total P0**: 10 scenarios, ~28-44 hours
+**Total P0**: 12 scenarios, ~34-52 hours
 
 ### P1 (High)
 
 **Criteria:** Important features + medium/high risk + common workflows
 
-| Requirement | Test Level | Risk Link | Test Count | Owner | Notes |
+| Story/Requirement | Test Level | Risk Link | Test Count | Owner | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Rule learning applies immediately with visible rule-origin provenance | Integration/E2E | R-206 | 2 | Backend + QA | Anchor + dictionary behaviors |
+| Story 2.0b AC1: rule-derived outputs persist full provenance envelope with stable identifiers | Integration/E2E | R-206 | 2 | Backend + QA | Anchor + dictionary rule paths |
+| Story 2.0b AC3: repeated recalculation appends new provenance envelopes without mutating prior records, and remains UI-reachable | Integration/E2E | R-206 | 1 | Backend + QA | Verification/detail provenance traversal checks |
+| Story 2.0a AC3: successful harness run persists deterministic summary artifact bundle with trend metadata | CLI/Artifact | R-203 | 1 | QA + Platform | Artifact path and metadata schema assertions |
+| Story 2.0c AC3: synchronized status exits zero with deterministic success summary for logs/automation | API/CLI | R-207 | 1 | Platform + QA | Success contract parity check local vs CI |
 | Validation runs incrementally after mutating commands without blocking active flow | E2E | R-202 | 1 | QA + Frontend | Focus continuity checks |
 | Provenance controls reachable via keyboard for all displayed values | E2E/a11y | R-208 | 1 | QA | Non-hover access validation |
 | Session reopen restores active queue item and workspace context | E2E | R-202 | 1 | QA | Deterministic restore path |
-| Story status integrity command returns deterministic mismatch report | API/CLI | R-207 | 1 | QA + Platform | Story 2.12 coverage |
-| CI/local hook blocks on status mismatch and identifies corrective files | Integration | R-207 | 1 | Platform + QA | Gate behavior |
 | Done-transition evidence gate rejects incomplete review evidence with reason code | API | R-207 | 1 | Backend + QA | Status remains unchanged |
 
-**Total P1**: 8 scenarios, ~24-38 hours
+**Total P1**: 9 scenarios, ~26-42 hours
 
 ### P2 (Medium)
 
@@ -161,8 +174,8 @@ lastSaved: '2026-02-20'
 
 ## Execution Strategy
 
-- **PR:** Run all functional P0 + P1 tests and fast P2 checks, targeting <=15 minutes with parallel workers.
-- **Nightly:** Run full P0/P1/P2 set with performance telemetry capture and deterministic re-run checks.
+- **PR:** Run all functional P0 + P1 tests and fast P2 checks, targeting <=15 minutes with parallel workers, including 2.0a threshold checks, 2.0b contract-violation tests, and 2.0c mismatch-drift checks.
+- **Nightly:** Run full P0/P1/P2 set with performance telemetry capture, deterministic re-run checks, and append-only provenance history validation.
 - **Weekly:** Run long-duration soak/benchmark and expanded accessibility sweeps.
 
 Execution philosophy: run everything in PRs unless suite cost is meaningfully high; defer only expensive or long-running checks.
@@ -175,11 +188,11 @@ Execution philosophy: run everything in PRs unless suite cost is meaningfully hi
 
 | Priority | Scenario Count | Effort Range | Notes |
 | --- | --- | --- | --- |
-| P0 | 10 | ~28-44 hours | High-risk data/queue/performance invariants |
-| P1 | 8 | ~24-38 hours | Workflow continuity and integrity gates |
+| P0 | 12 | ~34-52 hours | High-risk data/queue/performance invariants plus enablement blockers |
+| P1 | 9 | ~26-42 hours | Workflow continuity, provenance append-only checks, and gate parity |
 | P2 | 3 | ~8-14 hours | Benchmark and resilience checks |
 | P3 | 2 | ~2-6 hours | Exploratory and soak suites |
-| **Total** | **23** | **~62-102 hours** | **~2-3.5 weeks for 1 QA** |
+| **Total** | **26** | **~70-114 hours** | **~2.5-4 weeks for 1 QA** |
 
 ### Prerequisites
 
@@ -208,15 +221,18 @@ Execution philosophy: run everything in PRs unless suite cost is meaningfully hi
 - **P1 pass rate**: >=95%
 - **P2/P3 pass rate**: >=90% (informational unless tied to high-risk areas)
 - **High-risk mitigations (R-201 to R-205)**: complete or formally waived before release
-- **Provenance contract v1**: P0 gate (100% required for rule-derived artifacts)
-- **Latency budget harness**: P1 smoke gate initially (fail on egregious regressions), promoted to P0 after baseline stabilization
+- **Story 2.0a gate**: latency harness must enforce `<100ms` highlight + `<150ms` queue advance thresholds with deterministic non-zero failure output
+- **Story 2.0b gate**: 100% of rule-derived outputs must satisfy provenance contract v1 required fields; invalid payload path must prove no partial mutation
+- **Story 2.0c gate**: local and CI must execute the same status-integrity verifier command with identical non-zero/zero exit contracts
 
 ### Coverage Targets
 
 - **Critical verification/mapping paths**: >=80%
 - **Event-linkage integrity checks for Epic 2 mutating commands**: 100%
+- **Story 2.0a AC coverage**: 100%
+- **Story 2.0b AC coverage**: 100%
+- **Story 2.0c AC coverage**: 100%
 - **Queue determinism and provenance availability checks**: >=90%
-- **Performance target checks**: >=80% of benchmark suite scenarios automated
 
 ### Non-Negotiable Requirements
 
@@ -224,6 +240,7 @@ Execution philosophy: run everything in PRs unless suite cost is meaningfully hi
 - [ ] No high-risk (>=6) items unmitigated without explicit waiver
 - [ ] Data-integrity checks (DATA category) pass 100% for covered flows
 - [ ] Queue latency goals validated on supported office hardware profile
+- [ ] 2.0a/2.0b/2.0c gate evidence attached in `_bmad-output/test-artifacts` before Epic 2 sign-off
 
 ---
 

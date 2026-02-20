@@ -223,3 +223,47 @@ lastSaved: '2026-02-20'
   - Treat latency instrumentation + benchmark harness as required `2.0a` enablement (not optional).
   - Treat rule-learning provenance envelope as required `2.0b` enablement with append-only contract.
   - Treat CI/local status-integrity verifier as required `2.0c` enablement with identical contract and exit codes.
+
+## Step 1 - Detect Mode & Prerequisites (Epic-Level Update Run)
+- Mode selected: **Epic-Level** (explicit user intent: "td update Epic 2").
+- Inputs confirmed for Epic 2 update scope:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/planning-artifacts/epics.md` (Epic 2 + stories 2.0a/2.0b/2.0c)
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/implementation-artifacts/2-0a-latency-budget-smoke-harness.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/implementation-artifacts/2-0b-provenance-contract-v1-for-rule-derived-artifacts.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/implementation-artifacts/2-0c-status-integrity-verifier-parity-local-and-ci.md`
+- Prerequisites satisfied for epic-level test plan update.
+
+## Step 2 - Load Context (Epic-Level Update Run)
+- Loaded config flags:
+  - `tea_use_playwright_utils: true`
+  - `tea_browser_automation: auto`
+- Loaded required Epic-level knowledge fragments:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/risk-governance.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/probability-impact.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/test-levels-framework.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/test-priorities-matrix.md`
+  - `/Users/jeremiahotis/projects/tabulara/_bmad/tea/testarch/knowledge/playwright-cli.md`
+- Existing test scan for explicit 2.0a/2.0b/2.0c patterns found no direct coverage artifacts under `tests/` (gap recorded in plan).
+
+## Step 3 - Risk and Testability (Epic-Level Update Run)
+- System-level testability review not applicable (epic-level mode).
+- Reinforced Epic 2 enablement risks and traceability:
+  - `2.0a` mapped to latency budget regression containment (`R-203`).
+  - `2.0b` mapped to provenance contract completeness and no-partial-mutation guarantees (`R-206`).
+  - `2.0c` mapped to status-integrity drift prevention and local/CI parity (`R-207`).
+
+## Step 4 - Coverage Plan (Epic-Level Update Run)
+- Added explicit "Enablement Story Traceability (2.0a/2.0b/2.0c)" matrix.
+- Expanded coverage matrix with direct AC-linked rows for 2.0a/2.0b/2.0c and updated totals:
+  - P0: 12 scenarios (~34-52 hours)
+  - P1: 9 scenarios (~26-42 hours)
+  - P2/P3: 5 scenarios (~10-20 hours)
+- Updated execution strategy and quality gates so 2.0a/2.0b/2.0c are explicit release blockers with deterministic evidence requirements.
+
+## Step 5 - Generate Output (Epic-Level Update Run)
+- Updated output document:
+  - `/Users/jeremiahotis/projects/tabulara/_bmad-output/test-artifacts/test-design-epic-2.md`
+- Validation summary:
+  - Story-level traceability for 2.0a/2.0b/2.0c now explicit.
+  - Coverage, effort ranges, and quality gates updated to reflect enablement-blocker status.
+  - Artifact evidence requirement retained under `_bmad-output/test-artifacts` for sign-off.
