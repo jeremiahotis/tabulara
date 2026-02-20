@@ -219,7 +219,7 @@ lastSaved: '2026-02-20'
   - PR/Nightly/Weekly execution strategy included.
   - Resource estimates are ranges (no false precision).
   - Quality gates and exit thresholds defined.
-- Open assumptions:
-  - queue latency instrumentation and benchmark harness are available in Sprint 2,
-  - rule-learning provenance contract remains stable,
-  - status-integrity toolchain for Story 2.12 is integrated into CI/local handoff paths.
+- Blocker decisions (updated):
+  - Treat latency instrumentation + benchmark harness as required `2.0a` enablement (not optional).
+  - Treat rule-learning provenance envelope as required `2.0b` enablement with append-only contract.
+  - Treat CI/local status-integrity verifier as required `2.0c` enablement with identical contract and exit codes.

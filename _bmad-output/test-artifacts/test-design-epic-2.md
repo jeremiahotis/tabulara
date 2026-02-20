@@ -83,7 +83,11 @@ lastSaved: '2026-02-20'
 - [ ] Verification queue, evidence viewer, and mapping command endpoints available in test environment
 - [ ] Event/audit storage assertions available for review, validation, mapping, and learning commands
 - [ ] Validation and override APIs expose deterministic reason codes and payload schema
-- [ ] Performance telemetry hooks for queue advance and highlight latency are enabled
+- [ ] Epic 2 Enablement slice accepted and merged:
+  - [ ] 2.0a latency budget smoke harness (fixed scenario set, percentile output, threshold enforcement)
+  - [ ] 2.0b provenance contract v1 (append-only envelope populated for all rule-derived artifacts)
+  - [ ] 2.0c status-integrity verifier (same contract + exit codes locally and in CI)
+- [ ] Performance telemetry hooks for queue advance and highlight latency are enabled in local and CI execution paths
 
 ## Exit Criteria
 
@@ -92,6 +96,8 @@ lastSaved: '2026-02-20'
 - [ ] No open unmitigated high-priority risks (R-201 to R-205)
 - [ ] Epic 2 AC coverage >=80% with no uncovered P0 behavior
 - [ ] Queue determinism, provenance visibility, and override-audit invariants validated
+- [ ] No rule-derived artifact is accepted without populated provenance envelope fields
+- [ ] Status-integrity verifier passes identically in local and CI runs
 
 ---
 
@@ -202,6 +208,8 @@ Execution philosophy: run everything in PRs unless suite cost is meaningfully hi
 - **P1 pass rate**: >=95%
 - **P2/P3 pass rate**: >=90% (informational unless tied to high-risk areas)
 - **High-risk mitigations (R-201 to R-205)**: complete or formally waived before release
+- **Provenance contract v1**: P0 gate (100% required for rule-derived artifacts)
+- **Latency budget harness**: P1 smoke gate initially (fail on egregious regressions), promoted to P0 after baseline stabilization
 
 ### Coverage Targets
 
@@ -273,9 +281,22 @@ Execution philosophy: run everything in PRs unless suite cost is meaningfully hi
 
 ### Dependencies
 
-1. Benchmark harness and representative datasets for queue/performance metrics - required in Sprint 2.
-2. Deterministic status-integrity tooling (`sprint-status.yaml` vs markdown status projection) - required for Story 2.12 gates.
-3. Rule-learning provenance metadata contract finalized - required before full P0/P1 automation.
+1. **2.0a Latency Budget Harness (Blocker)**: fixed scenario smoke runner with p50/p95/p99 output and pass/fail thresholding; required before Epic 2 feature completion.
+2. **2.0b Provenance Contract v1 (Blocker)**: append-only schema/DTO with required fields:
+   - `provenance_source` (`user|system|imported|inferred`)
+   - `provenance_inputs` (document identifiers + version/hash)
+   - `provenance_rule_id` (stable reference)
+   - `provenance_confidence` (when applicable)
+   - `provenance_created_at_utc`
+3. **2.0c Status-Integrity Verifier (Blocker)**: one verifier contract with explicit invariants and identical local/CI enforcement + exit codes.
+
+### Epic 2 Enablement Slice (Mandatory Before Feature Hardening)
+
+| Slice | Deliverable | Gate Intent |
+| --- | --- | --- |
+| 2.0a | Latency budget smoke harness (CLI/script + seeded dataset + percentile output) | Catch regressions pre-merge with low CI cost |
+| 2.0b | Provenance contract v1 (schema + DTO + persistence + assertions) | Prevent unauditable rule-derived artifacts |
+| 2.0c | Status-integrity verifier (invariants + runner + gate wiring) | Keep local/CI status semantics aligned |
 
 ### Risks to Plan
 
@@ -287,7 +308,8 @@ Execution philosophy: run everything in PRs unless suite cost is meaningfully hi
 
 ## Follow-on Workflows (Manual)
 
-- Run `*atdd` to generate failing P0 tests for Epic 2 critical scenarios.
+- Build and merge **Epic 2 Enablement** (`2.0a/2.0b/2.0c`) before full Epic 2 feature completion.
+- Run `*atdd` to generate failing P0 tests for Epic 2 critical scenarios and enablement gates.
 - Run `*automate` to scaffold broader API/E2E tests from this coverage plan.
 
 ---
