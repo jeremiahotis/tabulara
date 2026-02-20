@@ -11,6 +11,7 @@ echo " - Shards: ${TOTAL_SHARDS}"
 echo " - Burn-in: ${RUN_BURN_IN}"
 
 npm run lint --if-present
+npm run quality:latency-smoke
 
 for shard in $(seq 1 "$TOTAL_SHARDS"); do
   echo "Executing shard ${shard}/${TOTAL_SHARDS}"

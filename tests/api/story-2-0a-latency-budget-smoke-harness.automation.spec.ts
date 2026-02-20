@@ -21,17 +21,42 @@ test.describe('Story 2.0a API automation coverage', () => {
     });
   }
 
-  test('[P0][AC1] should keep latency smoke run endpoint unavailable before implementation', async ({ apiRequest }) => {
-    const { status, body } = await runLatencySmoke(apiRequest, {
+  test('[P0][AC1] should report deterministic p50/p95/p99 metrics for highlight and queue advance', async ({ apiRequest }) => {
+    const first = await runLatencySmoke(apiRequest, {
+      highlight_ms_max: story20aRedPhaseData.thresholds.highlightP95MsMax,
+      queue_advance_ms_max: story20aRedPhaseData.thresholds.queueAdvanceP95MsMax,
+    });
+    const second = await runLatencySmoke(apiRequest, {
       highlight_ms_max: story20aRedPhaseData.thresholds.highlightP95MsMax,
       queue_advance_ms_max: story20aRedPhaseData.thresholds.queueAdvanceP95MsMax,
     });
 
-    expect(status).toBe(404);
-    expect(body).toEqual({ error: 'Not found' });
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(first.body).toMatchObject({
+      run_id: expect.any(String),
+      metrics: {
+        highlight_latency_ms: {
+          p50: expect.any(Number),
+          p95: expect.any(Number),
+          p99: expect.any(Number),
+        },
+        queue_advance_latency_ms: {
+          p50: expect.any(Number),
+          p95: expect.any(Number),
+          p99: expect.any(Number),
+        },
+      },
+      threshold_evaluation: {
+        highlight_p95_within_budget: true,
+        queue_advance_p95_within_budget: true,
+      },
+    });
+    expect(first.body.metrics).toEqual(second.body.metrics);
+    expect(first.body.threshold_evaluation).toEqual(second.body.threshold_evaluation);
   });
 
-  test('[P0][AC2] should return deterministic machine-readable not-found output across repeated latency smoke invocations', async ({
+  test('[P0][AC2] should return deterministic machine-readable threshold failures with non-zero process exit code contract', async ({
     apiRequest,
   }) => {
     const first = await runLatencySmoke(apiRequest, {
@@ -43,26 +68,101 @@ test.describe('Story 2.0a API automation coverage', () => {
       queue_advance_ms_max: 1,
     });
 
-    expect(first.status).toBe(404);
-    expect(second.status).toBe(404);
-    expect(first.body).toEqual({ error: 'Not found' });
-    expect(second.body).toEqual({ error: 'Not found' });
+    expect(first.status).toBe(422);
+    expect(second.status).toBe(422);
+    expect(first.body).toMatchObject({
+      success: false,
+      error: {
+        code: 'LATENCY_THRESHOLD_EXCEEDED',
+      },
+      failures: expect.arrayContaining([
+        expect.objectContaining({
+          scenario: expect.any(String),
+          metric: expect.stringMatching(/highlight|queue_advance/),
+          observed_percentile: 'p95',
+          observed_ms: expect.any(Number),
+          threshold_ms: expect.any(Number),
+        }),
+      ]),
+      process: {
+        exit_code: 1,
+      },
+    });
+    expect(second.body).toMatchObject({
+      success: false,
+      error: {
+        code: 'LATENCY_THRESHOLD_EXCEEDED',
+      },
+      process: {
+        exit_code: 1,
+      },
+    });
   });
 
-  test('[P1][AC3] should keep latency smoke artifact endpoint unavailable before implementation', async ({ apiRequest }) => {
-    const artifact = await apiRequest<{ error: string }>({
+  test('[P1][AC3] should emit latency summary artifact with run metadata for trend comparisons', async ({ apiRequest }) => {
+    const run = await runLatencySmoke(apiRequest, {
+      highlight_ms_max: story20aRedPhaseData.thresholds.highlightP95MsMax,
+      queue_advance_ms_max: story20aRedPhaseData.thresholds.queueAdvanceP95MsMax,
+    });
+    expect(run.status).toBe(200);
+
+    const artifact = await apiRequest<{
+      output_path: string;
+      metadata: {
+        run_id: string;
+        scenario_seed: string;
+        scenario_count: number;
+        git_commit: string;
+        harness_version: string;
+        started_at: string;
+        completed_at: string;
+      };
+      percentiles: {
+        highlight_latency_ms: { p50: number; p95: number; p99: number };
+        queue_advance_latency_ms: { p50: number; p95: number; p99: number };
+      };
+    }>({
       method: 'GET',
-      path: '/api/v1/perf/latency-smoke/runs/fake-run-id/artifact',
+      path: `/api/v1/perf/latency-smoke/runs/${(run.body as { run_id: string }).run_id}/artifact`,
     });
 
-    expect(artifact.status).toBe(404);
-    expect(artifact.body).toEqual({ error: 'Not found' });
+    expect(artifact.status).toBe(200);
+    expect(artifact.body).toMatchObject({
+      output_path: expect.stringContaining('_bmad-output/test-artifacts'),
+      metadata: {
+        run_id: (run.body as { run_id: string }).run_id,
+        scenario_seed: story20aRedPhaseData.scenarioSeed,
+        scenario_count: story20aRedPhaseData.scenarios.length,
+        git_commit: expect.any(String),
+        harness_version: expect.any(String),
+        started_at: expect.any(String),
+        completed_at: expect.any(String),
+      },
+      percentiles: {
+        highlight_latency_ms: {
+          p50: expect.any(Number),
+          p95: expect.any(Number),
+          p99: expect.any(Number),
+        },
+        queue_advance_latency_ms: {
+          p50: expect.any(Number),
+          p95: expect.any(Number),
+          p99: expect.any(Number),
+        },
+      },
+    });
   });
 
-  test('[P1][AC1] should keep non-deterministic scenario ordering guard unimplemented until latency endpoint exists', async ({
+  test('[P1][AC1] should reject non-deterministic scenario ordering inputs deterministically', async ({
     apiRequest,
   }) => {
-    const response = await apiRequest<{ error: string }>({
+    const response = await apiRequest<{
+      error: {
+        code: string;
+        reason: string;
+      };
+      mutation_applied: boolean;
+    }>({
       method: 'POST',
       path: '/api/v1/perf/latency-smoke/run',
       body: {
@@ -75,7 +175,13 @@ test.describe('Story 2.0a API automation coverage', () => {
       },
     });
 
-    expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'Not found' });
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'LATENCY_SCENARIO_SET_INVALID',
+        reason: 'non_deterministic_ordering_disallowed',
+      },
+      mutation_applied: false,
+    });
   });
 });

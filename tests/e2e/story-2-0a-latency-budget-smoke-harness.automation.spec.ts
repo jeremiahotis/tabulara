@@ -10,7 +10,7 @@ test.describe('Story 2.0a E2E automation coverage', () => {
     await expect(page.getByTestId('latency-smoke-seed-input')).toHaveCount(0);
   });
 
-  test('[P0][AC2] should return deterministic machine-readable not-found output for latency smoke run endpoint in browser context', async ({
+  test('[P0][AC2] should return deterministic machine-readable threshold failures for latency smoke run endpoint in browser context', async ({
     page,
   }) => {
     const response = await page.request.post('/api/v1/perf/latency-smoke/run', {
@@ -24,16 +24,42 @@ test.describe('Story 2.0a E2E automation coverage', () => {
       },
     });
 
-    expect(response.status()).toBe(404);
-    await expect(response.json()).resolves.toEqual({ error: 'Not found' });
+    expect(response.status()).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      error: {
+        code: 'LATENCY_THRESHOLD_EXCEEDED',
+      },
+      process: {
+        exit_code: 1,
+      },
+    });
   });
 
-  test('[P1][AC3] should return deterministic not-found output for latency smoke artifact endpoint in browser context', async ({
+  test('[P1][AC3] should expose latency smoke artifact metadata endpoint in browser context', async ({
     page,
   }) => {
-    const response = await page.request.get('/api/v1/perf/latency-smoke/runs/fake-run-id/artifact');
+    const runResponse = await page.request.post('/api/v1/perf/latency-smoke/run', {
+      data: {
+        scenario_seed: story20aRedPhaseData.scenarioSeed,
+        scenarios: story20aRedPhaseData.scenarios,
+        thresholds: {
+          highlight_ms_max: story20aRedPhaseData.thresholds.highlightP95MsMax,
+          queue_advance_ms_max: story20aRedPhaseData.thresholds.queueAdvanceP95MsMax,
+        },
+      },
+    });
+    expect(runResponse.status()).toBe(200);
+    const runBody = (await runResponse.json()) as { run_id: string };
 
-    expect(response.status()).toBe(404);
-    await expect(response.json()).resolves.toEqual({ error: 'Not found' });
+    const artifactResponse = await page.request.get(`/api/v1/perf/latency-smoke/runs/${runBody.run_id}/artifact`);
+    expect(artifactResponse.status()).toBe(200);
+    await expect(artifactResponse.json()).resolves.toMatchObject({
+      output_path: expect.stringContaining('_bmad-output/test-artifacts'),
+      metadata: {
+        run_id: runBody.run_id,
+        scenario_seed: story20aRedPhaseData.scenarioSeed,
+      },
+    });
   });
 });
