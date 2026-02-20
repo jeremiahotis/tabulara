@@ -48,19 +48,19 @@ development_status:
   1-4-apply-preprocessing-and-controlled-reprocessing: done
   1-5-run-extraction-and-persist-derived-data-updates: done
   epic-1-retrospective: done
-  epic-2: backlog
-  2-1-verification-queue-with-source-synchronized-focus: backlog
-  2-2-assign-and-update-field-values-with-lock-controls: backlog
-  2-3-map-item-rows-and-extra-table-values: backlog
-  2-4-capture-anchor-and-dictionary-learning-rules: backlog
-  2-5-resolve-review-tasks-and-batch-confirmation: backlog
-  2-6-run-validation-and-managed-overrides: backlog
-  2-7-deterministic-verification-navigation: backlog
-  2-8-provenance-availability-guarantees: backlog
-  2-9-verification-performance-targets: backlog
-  2-10-incremental-validation-behavior: backlog
-  2-11-mapping-immediate-effect: backlog
-  2-12-enforce-story-status-integrity-across-artifacts: backlog
+  epic-2: in-progress
+  2-1-verification-queue-with-source-synchronized-focus: ready-for-dev
+  2-2-assign-and-update-field-values-with-lock-controls: ready-for-dev
+  2-3-map-item-rows-and-extra-table-values: ready-for-dev
+  2-4-capture-anchor-and-dictionary-learning-rules: ready-for-dev
+  2-5-resolve-review-tasks-and-batch-confirmation: ready-for-dev
+  2-6-run-validation-and-managed-overrides: ready-for-dev
+  2-7-deterministic-verification-navigation: ready-for-dev
+  2-8-provenance-availability-guarantees: ready-for-dev
+  2-9-verification-performance-targets: ready-for-dev
+  2-10-incremental-validation-behavior: ready-for-dev
+  2-11-mapping-immediate-effect: ready-for-dev
+  2-12-enforce-story-status-integrity-across-artifacts: ready-for-dev
   epic-2-retrospective: optional
   epic-3: backlog
   3-1-export-session-artifacts-with-manifest-integrity: backlog
